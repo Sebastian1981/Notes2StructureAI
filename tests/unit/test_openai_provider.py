@@ -100,10 +100,15 @@ def test_request_uses_structured_output_original_detail_and_no_storage() -> None
     assert request["store"] is False
     assert request["text_format"] is AnalysisPayload
     assert request["timeout"] == 60.0
-    assert provider.prompt_version == "analyze-v2"
+    assert provider.prompt_version == "analyze-v3"
     instructions = request["instructions"]
     assert isinstance(instructions, str)
     assert "`kind` is `classification`, `target_ids` must contain the exact literal" in instructions
+    assert "When `detected_type` is `notes` or `unknown`, return empty graph" in instructions
+    assert "exactly one fewer edge than nodes" in instructions
+    assert (
+        "Every `source_ids`, graph endpoint, and uncertainty target must reference" in instructions
+    )
     request_input = request["input"]
     assert isinstance(request_input, list)
     content = request_input[0]["content"]  # type: ignore[index]

@@ -71,7 +71,7 @@ Notes2StructureAI/
 │   │   ├── base.py
 │   │   └── <chosen_provider>.py
 │   ├── prompts/
-│   │   └── analyze_v2.md
+│   │   └── analyze_v3.md
 │   └── renderers/
 │       ├── markdown.py
 │       └── mermaid.py

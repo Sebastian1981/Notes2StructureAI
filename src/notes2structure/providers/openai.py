@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from notes2structure.image_reader import NormalizedImage
     from notes2structure.providers.base import AnalysisOptions
 
-PROMPT_VERSION = "analyze-v2"
+PROMPT_VERSION = "analyze-v3"
 MAX_ATTEMPTS = 3
 ATTEMPT_TIMEOUT_SECONDS = 60.0
 TOTAL_TIMEOUT_SECONDS = 200.0
@@ -91,7 +91,7 @@ class OpenAIVisionProvider:
         self._monotonic = hooks.monotonic
         self._jitter = hooks.jitter
         self._instructions = (
-            files("notes2structure.prompts").joinpath("analyze_v2.md").read_text(encoding="utf-8")
+            files("notes2structure.prompts").joinpath("analyze_v3.md").read_text(encoding="utf-8")
         )
 
     def analyze(self, image: NormalizedImage, options: AnalysisOptions) -> AnalysisPayload:
