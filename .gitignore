@@ -210,8 +210,9 @@ tempCodeRunnerFile.py
 .pypirc
 
 # Notes2StructureAI private inputs and generated output
-input/
-output/
+/local-data/
+/input/
+/output/
 run-*/
 .n2s-tmp-*/
 

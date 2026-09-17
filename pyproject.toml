@@ -10,6 +10,8 @@ readme = "README.md"
 requires-python = "==3.12.*"
 license = { file = "LICENSE" }
 dependencies = [
+  "openai==3.14.1",
+  "pillow==12.1.0",
   "pydantic==2.12.5",
 ]
 
@@ -62,7 +64,13 @@ ignore = [
   "D105",
   "D106",
   "D107",
+  "FBT001",
+  "PERF401",
+  "TC001",
+  "TC003",
+  "TRY300",
+  "TRY301",
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = ["S101"]
+"tests/**/*.py" = ["PLR2004", "S101"]
