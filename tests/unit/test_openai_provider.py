@@ -100,6 +100,10 @@ def test_request_uses_structured_output_original_detail_and_no_storage() -> None
     assert request["store"] is False
     assert request["text_format"] is AnalysisPayload
     assert request["timeout"] == 60.0
+    assert provider.prompt_version == "analyze-v2"
+    instructions = request["instructions"]
+    assert isinstance(instructions, str)
+    assert "`kind` is `classification`, `target_ids` must contain the exact literal" in instructions
     request_input = request["input"]
     assert isinstance(request_input, list)
     content = request_input[0]["content"]  # type: ignore[index]
