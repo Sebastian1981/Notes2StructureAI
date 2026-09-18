@@ -16,6 +16,7 @@ from notes2structure.schemas import (
     NodeKind,
     NoteItem,
     NoteSection,
+    ReinterpretationPayload,
     SegmentStatus,
     TranscriptSegment,
     Uncertainty,
@@ -26,16 +27,27 @@ from notes2structure.schemas import (
 @dataclass(slots=True)
 class FakeProvider:
     payload: AnalysisPayload
+    reinterpretation_payload: ReinterpretationPayload | None = None
     name: str = "fake"
     model: str = "deterministic-test-model"
     prompt_version: str = "analyze-v1"
+    reinterpret_prompt_version: str = "reinterpret-v1"
     is_remote: bool = False
     calls: int = field(default=0, init=False)
+    reinterpret_calls: int = field(default=0, init=False)
 
     def analyze(self, image: NormalizedImage, options: AnalysisOptions) -> AnalysisPayload:
         del image, options
         self.calls += 1
         return self.payload
+
+    def reinterpret(self, document: object, requested_type: object) -> ReinterpretationPayload:
+        del document, requested_type
+        self.reinterpret_calls += 1
+        if self.reinterpretation_payload is None:
+            message = "No reinterpretation payload configured for this test."
+            raise AssertionError(message)
+        return self.reinterpretation_payload
 
 
 def write_png(path: Path, *, size: tuple[int, int] = (4, 3)) -> Path:
@@ -120,6 +132,15 @@ def process_payload(
                 )
             ],
         ),
+        uncertainties=[],
+        warnings=[],
+    )
+
+
+def process_reinterpretation_payload() -> ReinterpretationPayload:
+    payload = process_payload()
+    return ReinterpretationPayload(
+        graph=payload.graph,
         uncertainties=[],
         warnings=[],
     )

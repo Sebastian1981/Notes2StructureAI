@@ -19,16 +19,19 @@ Offizielle Referenzen:
 
 Ohne CLI-Schalter `--allow-remote` findet kein Provideraufruf statt. Übertragen werden nur
 das lokal dekodierte, EXIF-bereinigte und als RGB-PNG neu kodierte Bild, der versionierte
-Analyse-Prompt, Modus und optionale Typvorgabe. Lokale Dateipfade und der ursprüngliche
+Analyse-Prompt und der Vollanalysemodus ohne Typvorgabe. Lokale Dateipfade und der ursprüngliche
 Dateiname sind nicht Teil des Requests. `store=False` verhindert das Speichern der Response
 als API-Anwendungszustand. Laut OpenAI werden API-Daten standardmäßig nicht zum Training
 verwendet; abhängig von Kontoeinstellungen und rechtlichen Anforderungen können
 Missbrauchsprotokolle zeitlich begrenzt aufbewahrt werden. Die aktuelle OpenAI-Dokumentation
 bleibt dafür maßgeblich.
 
-Im lokalen Frontend entspricht die Checkbox zur Bildübertragung dem CLI-Schalter. Sie ist beim
-Start deaktiviert und muss vor der Analyse bewusst gesetzt werden. Die Vorschau oder das
-Verwerfen ändert nichts daran, dass der Provideraufruf zu diesem Zeitpunkt bereits erfolgt ist.
+Im lokalen Frontend entspricht die Checkbox zur Übertragungsfreigabe dem CLI-Schalter. Sie ist
+beim Start deaktiviert und muss vor der Analyse bewusst gesetzt werden. Optionale Schaltflächen
+für eine andere Diagramminterpretation lösen jeweils einen zusätzlichen textbasierten Request
+aus. Dabei werden nur die benötigten Teile der validierten Analyse und nicht erneut das Bild
+übertragen. Die Vorschau oder das Verwerfen ändert nichts daran, dass bereits ausgeführte
+Provideraufrufe zu diesem Zeitpunkt erfolgt sind.
 
 ## Secret und Konfiguration
 
@@ -40,8 +43,9 @@ Schlüssel noch Providerantworten wieder.
 
 ## Ressourcen- und Fehlergrenzen
 
-- maximal ein Request im Normalfall und drei Gesamtversuche bei Verbindung, Timeout, HTTP 429
-  oder HTTP 5xx;
+- maximal ein Request für die reguläre Vollanalyse; nur eine ausdrücklich gewählte alternative
+  Diagramminterpretation löst einen weiteren Request aus; je Request höchstens drei Gesamtversuche
+  bei Verbindung, Timeout, HTTP 429 oder HTTP 5xx;
 - SDK-eigene Retries deaktiviert, 60 Sekunden je Versuch und 200 Sekunden Gesamtfrist;
 - Backoff von 1 und 2 Sekunden mit kleinem Jitter; `Retry-After` nur innerhalb der Gesamtfrist;
 - höchstens 2 MiB Antwortdaten vor dem Parsing;

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import httpx2
@@ -15,10 +16,17 @@ from openai import (
 
 from notes2structure.errors import AnalysisValidationError, InputError, ProviderError
 from notes2structure.image_reader import NormalizedImage
+from notes2structure.pipeline import analyze_image
 from notes2structure.providers.base import AnalysisOptions
 from notes2structure.providers.openai import MAX_RESPONSE_BYTES, OpenAIVisionProvider, RetryHooks
-from notes2structure.schemas import AnalysisPayload, Mode
-from tests.support import notes_payload, transcribe_payload
+from notes2structure.schemas import AnalysisPayload, KnownType, Mode, ReinterpretationPayload
+from tests.support import (
+    FakeProvider,
+    notes_payload,
+    process_reinterpretation_payload,
+    transcribe_payload,
+    write_png,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -131,6 +139,33 @@ def test_transcribe_mode_is_explicit_in_request() -> None:
     assert isinstance(request_input, list)
     content = request_input[0]["content"]  # type: ignore[index]
     assert "Mode: transcribe" in content[0]["text"]  # type: ignore[index, operator]
+
+
+def test_reinterpretation_uses_only_validated_json_without_an_image(tmp_path: Path) -> None:
+    document = analyze_image(
+        write_png(tmp_path / "note.png"),
+        AnalysisOptions(mode=Mode.FULL, requested_type=None),
+        FakeProvider(notes_payload()),
+    )
+    payload = process_reinterpretation_payload()
+    provider, requests = make_provider([FakeRawResponse(payload)])
+
+    result = provider.reinterpret(document, KnownType.PROCESS)
+
+    assert result == payload
+    request = requests.calls[0]
+    assert request["text_format"] is ReinterpretationPayload
+    assert request["store"] is False
+    instructions = request["instructions"]
+    assert isinstance(instructions, str)
+    assert "You do not have access to" in instructions
+    assert "the original image in this request" in instructions
+    request_input = request["input"]
+    assert isinstance(request_input, list)
+    content = request_input[0]["content"]  # type: ignore[index]
+    assert len(content) == 1  # type: ignore[arg-type]
+    assert content[0]["type"] == "input_text"  # type: ignore[index]
+    assert 'requested_type":"process' in content[0]["text"]  # type: ignore[index, operator]
 
 
 def test_timeout_is_retried_at_most_three_times() -> None:

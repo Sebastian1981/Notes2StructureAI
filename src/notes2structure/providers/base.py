@@ -6,7 +6,13 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from notes2structure.image_reader import NormalizedImage
-from notes2structure.schemas import AnalysisPayload, KnownType, Mode
+from notes2structure.schemas import (
+    AnalysisPayload,
+    DocumentIR,
+    KnownType,
+    Mode,
+    ReinterpretationPayload,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -19,6 +25,11 @@ class VisionProvider(Protocol):
     name: str
     model: str
     prompt_version: str
+    reinterpret_prompt_version: str
     is_remote: bool
 
     def analyze(self, image: NormalizedImage, options: AnalysisOptions) -> AnalysisPayload: ...
+
+    def reinterpret(
+        self, document: DocumentIR, requested_type: KnownType
+    ) -> ReinterpretationPayload: ...

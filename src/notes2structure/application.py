@@ -11,12 +11,12 @@ from notes2structure.artifacts import render_artifacts
 from notes2structure.config import AppConfig
 from notes2structure.errors import ConfigurationError
 from notes2structure.output_writer import publish_artifacts
-from notes2structure.pipeline import analyze_image
+from notes2structure.pipeline import analyze_image, reinterpret_document
 from notes2structure.providers.openai import OpenAIVisionProvider
 
 if TYPE_CHECKING:
     from notes2structure.providers.base import AnalysisOptions, VisionProvider
-    from notes2structure.schemas import DocumentIR
+    from notes2structure.schemas import DocumentIR, KnownType
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,6 +47,21 @@ def create_preview(
         message = "Für einen externen Provider ist die Freigabe der Bildübertragung erforderlich."
         raise ConfigurationError(message)
     document = analyze_image(image_path, options, provider)
+    return AnalysisPreview(document=document, artifacts=render_artifacts(document))
+
+
+def reinterpret_preview(
+    preview: AnalysisPreview,
+    requested_type: KnownType,
+    provider: VisionProvider,
+    *,
+    allow_remote: bool,
+) -> AnalysisPreview:
+    """Create an optional diagram interpretation from validated data, without the image."""
+    if provider.is_remote and not allow_remote:
+        message = "Für die externe Neuinterpretation ist die Übertragungsfreigabe erforderlich."
+        raise ConfigurationError(message)
+    document = reinterpret_document(preview.document, requested_type, provider)
     return AnalysisPreview(document=document, artifacts=render_artifacts(document))
 
 

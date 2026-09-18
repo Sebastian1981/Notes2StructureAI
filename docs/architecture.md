@@ -37,6 +37,7 @@ flowchart TD
     MMD --> PREVIEW
     PREVIEW -->|CLI oder Speichern| WRITE[Artefakte vollständig lokal veröffentlichen]
     PREVIEW -->|Verwerfen| DROP[Ohne Veröffentlichung beenden]
+    PREVIEW -->|Optionale Neuinterpretation: nur validiertes JSON| PROVIDER
 ```
 
 1. CLI oder Frontend validieren Optionen, Konfiguration und Remote-Freigabe.
@@ -46,7 +47,7 @@ flowchart TD
 5. Pipeline ergänzt ausschließlich vertrauenswürdige Laufmetadaten, berechnet effektiven Typ, Diagrammstatus und Prüfstatus und erzeugt `DocumentIR`.
 6. Renderer erzeugen alle Inhalte im Speicher. Die CLI veröffentlicht sie unmittelbar; das Frontend zeigt sie zunächst nur als Vorschau und ruft den Writer erst nach der Speicheraktion auf.
 
-Klassifikation, Transkription und Struktur werden im Modus `full` möglichst in einer Analyse angefordert. Kein separater Klassifikationsaufruf und kein zweiter LLM-Aufruf zum Rendern. Das strukturelle Extrahieren durch ein Modell bleibt probabilistisch; die nachfolgenden Verarbeitungsschritte sind deterministisch.
+Klassifikation, Transkription und Struktur werden im Modus `full` in einer Analyse angefordert. Kein separater Klassifikationsaufruf und kein zweiter LLM-Aufruf zum regulären Rendern. Nur die im Frontend ausdrücklich gewählte alternative Diagramminterpretation ist ein zusätzlicher textbasierter Aufruf. Sie erhält die validierten Inhalte der vorhandenen Analyse, niemals erneut das Bild, und darf fehlende Evidenz nicht ergänzen. Das strukturelle Extrahieren durch ein Modell bleibt probabilistisch; die nachfolgenden Verarbeitungsschritte sind deterministisch.
 
 ## 3. Vorgesehene Repository-Struktur
 
@@ -78,7 +79,8 @@ Notes2StructureAI/
 │   │   ├── base.py
 │   │   └── <chosen_provider>.py
 │   ├── prompts/
-│   │   └── analyze_v5.md
+│   │   ├── analyze_v5.md
+│   │   └── reinterpret_v1.md
 │   └── renderers/
 │       ├── markdown.py
 │       ├── mermaid.py
@@ -102,6 +104,10 @@ class VisionProvider(Protocol):
     def analyze(
         self, image: NormalizedImage, options: AnalysisOptions
     ) -> AnalysisPayload: ...
+
+    def reinterpret(
+        self, document: DocumentIR, requested_type: KnownType
+    ) -> ReinterpretationPayload: ...
 
 def render_transcript(document: DocumentIR) -> str: ...
 def render_notes(document: DocumentIR) -> str: ...
@@ -134,6 +140,8 @@ Schema-Version: String `"1.0"`. Alle unten aufgeführten Felder sind Pflichtfeld
 `KnownType` umfasst `notes`, `mindmap`, `process`, `architecture`; `DocumentType` zusätzlich `unknown`. Im Transkriptionsmodus sind alle Klassifikationsfelder `null`.
 
 `AnalysisPayload` verwendet dieselben fachlichen Teilmodelle, enthält aber ausschließlich `detected_type`, `classification_reason`, `transcript`, `sections`, `graph`, `uncertainties` und `warnings`. Der Adapter liefert keine Laufmetadaten, keinen effektiven Typ und keine berechneten Statusfelder. Die Pipeline baut die endgültige IR daraus auf.
+
+`ReinterpretationPayload` enthält ausschließlich `graph`, graphbezogene `uncertainties` und `warnings`. Die Pipeline übernimmt Transkript, Abschnitte, erkannte Klassifikation und Quelle aus der vorhandenen validierten `DocumentIR`, entfernt alte graphbezogene Unsicherheitsziele, setzt den ausdrücklich gewünschten effektiven Diagrammtyp und validiert anschließend eine neue vollständige `DocumentIR`. Die neue Laufmetadaten-ID verhindert das Überschreiben eines zuvor gespeicherten Ergebnisses.
 
 ### 5.2 Invarianten
 
@@ -221,7 +229,7 @@ Diagrammstatus `generated` heißt: Mermaid-Quelltext wird als Teil des vollstän
 
 Der Writer erhält ein Mapping fester Dateinamen zu Texten. Er erzeugt ein exklusives temporäres Verzeichnis im Ausgabeverzeichnis und veröffentlicht es erst nach vollständigem Schreiben unter `run-<uuid4-hex>`. Ein bestehendes Ziel ist ein Fehler; nie ersetzen. Bei gewöhnlichen Fehlern eigene temporäre Dateien aufräumen. Nach Stromausfall oder Prozessabbruch können temporäre Reste bleiben; kein Anspruch auf transaktionale Dauerhaftigkeit über Hardwareausfälle hinweg.
 
-Das Frontend hält `DocumentIR` und gerenderte Textartefakte sitzungsgebunden im Gradio-State. Für die grafische Vorschau erzeugt ein zusätzlicher reiner Renderer aus dem validierten Graphen statisches SVG mit festem Layout, HTML-Escaping und ohne Skripte, Links oder externe Ressourcen. Diese SVG-Vorschau wird nicht an den Writer übergeben; der gespeicherte Diagrammvertrag bleibt `diagram.mmd`. Eine Speicheraktion übergibt exakt die regulären Artefakte an den Writer und löst keine erneute Analyse aus. Bildwechsel, Typwechsel und Verwerfen invalidieren den State. Das Frontend startet mit deaktivierter Gradio-Analyse, ohne Sharing, Monitoring oder MCP-Endpunkt und bindet ausschließlich an `127.0.0.1`.
+Das Frontend hält `DocumentIR` und gerenderte Textartefakte sitzungsgebunden im Gradio-State. Für die grafische Vorschau erzeugt ein zusätzlicher reiner Renderer aus dem validierten Graphen statisches SVG mit festem Layout, HTML-Escaping und ohne Skripte, Links oder externe Ressourcen. Diese SVG-Vorschau wird nicht an den Writer übergeben; der gespeicherte Diagrammvertrag bleibt `diagram.mmd`. Die reguläre Schaltfläche verwendet stets `Mode.FULL` ohne Typvorgabe und zeigt alle daraus erzeugten Ansichten. Alternative Diagrammschaltflächen ersetzen den State erst nach erfolgreicher graphbezogener Neuinterpretation; Reinschrift und Abschnitte bleiben erhalten. Eine Speicheraktion übergibt exakt die aktuell angezeigten regulären Artefakte an den Writer und löst keine erneute Analyse aus. Bildwechsel und Verwerfen invalidieren den State. Das Frontend startet mit deaktivierter Gradio-Analyse, ohne Sharing, Monitoring oder MCP-Endpunkt und bindet ausschließlich an `127.0.0.1`.
 
 ## 8. Fehlerbehandlung und Beobachtbarkeit
 

@@ -20,8 +20,11 @@ from notes2structure.schemas import (
     DiagramStatus,
     DocumentIR,
     DocumentType,
+    KnownType,
     Mode,
+    ReinterpretationPayload,
     SegmentStatus,
+    Uncertainty,
 )
 
 if TYPE_CHECKING:
@@ -30,6 +33,7 @@ if TYPE_CHECKING:
     from notes2structure.providers.base import AnalysisOptions, VisionProvider
 
 DIAGRAM_TYPES = frozenset({DocumentType.MINDMAP, DocumentType.PROCESS, DocumentType.ARCHITECTURE})
+DIAGRAM_KNOWN_TYPES = frozenset({KnownType.MINDMAP, KnownType.PROCESS, KnownType.ARCHITECTURE})
 MAX_WARNINGS = 100
 
 
@@ -102,6 +106,124 @@ def analyze_image(
     except ValidationError as error:
         message = "Die Provideranalyse verletzt den vereinbarten fachlichen Vertrag."
         raise AnalysisValidationError(message) from error
+
+
+def reinterpret_document(
+    document: DocumentIR,
+    requested_type: KnownType,
+    provider: VisionProvider,
+    *,
+    clock: Callable[[], datetime] | None = None,
+    run_id_factory: Callable[[], str] | None = None,
+) -> DocumentIR:
+    """Create a new validated diagram view from an existing analysis without its image."""
+    if document.mode is not Mode.FULL:
+        message = "Nur eine vollständige Analyse kann als Diagramm neu interpretiert werden."
+        raise AnalysisValidationError(message)
+    if requested_type not in DIAGRAM_KNOWN_TYPES:
+        message = "Die gewünschte Neuinterpretation ist kein Diagrammtyp."
+        raise AnalysisValidationError(message)
+
+    payload = provider.reinterpret(document, requested_type)
+    _validate_reinterpretation_targets(payload)
+    preserved_uncertainties = _preserve_non_graph_uncertainties(document)
+    uncertainties = [*preserved_uncertainties, *payload.uncertainties]
+    warnings = [
+        warning
+        for warning in document.warnings
+        if not warning.startswith("Gewünschter Dokumenttyp '")
+    ]
+    warnings.extend(payload.warnings)
+    detected = document.classification.detected_type
+    type_conflict = False
+    if detected is not None and detected.value != requested_type.value:
+        type_conflict = True
+        if len(warnings) >= MAX_WARNINGS:
+            message = "Provider warnings leave no room for the required type-conflict warning."
+            raise AnalysisValidationError(message)
+        warnings.append(
+            f"Gewünschter Dokumenttyp '{requested_type.value}' weicht vom erkannten Typ "
+            f"'{detected.value}' ab."
+        )
+
+    effective = DocumentType(requested_type.value)
+    diagram = _decide_diagram(Mode.FULL, effective, has_nodes=bool(payload.graph.nodes))
+    now = (clock or _utc_now)()
+    run_id = (run_id_factory or _new_run_id)()
+    try:
+        merged_payload = AnalysisPayload(
+            detected_type=detected,
+            classification_reason=document.classification.reason,
+            transcript=document.transcript,
+            sections=document.sections,
+            graph=payload.graph,
+            uncertainties=uncertainties,
+            warnings=warnings,
+        )
+        review_required = _calculate_review_required(
+            mode=Mode.FULL,
+            effective_type=effective,
+            type_conflict=type_conflict,
+            diagram=diagram,
+            payload=merged_payload,
+        )
+        return DocumentIR(
+            schema_version=SCHEMA_VERSION,
+            mode=Mode.FULL,
+            source=document.source,
+            analysis=AnalysisMetadata(
+                provider=provider.name,
+                model=provider.model,
+                prompt_version=provider.reinterpret_prompt_version,
+                created_at=_format_timestamp(now),
+                run_id=run_id,
+            ),
+            classification=Classification(
+                detected_type=detected,
+                requested_type=requested_type,
+                effective_type=effective,
+                reason=document.classification.reason,
+            ),
+            transcript=document.transcript,
+            sections=document.sections,
+            graph=payload.graph,
+            uncertainties=uncertainties,
+            warnings=warnings,
+            review_required=review_required,
+            diagram=diagram,
+        )
+    except ValidationError as error:
+        message = "Die Neuinterpretation verletzt den vereinbarten fachlichen Vertrag."
+        raise AnalysisValidationError(message) from error
+
+
+def _validate_reinterpretation_targets(payload: ReinterpretationPayload) -> None:
+    graph_ids = {node.id for node in payload.graph.nodes} | {
+        edge.id for edge in payload.graph.edges
+    }
+    invalid_targets = sorted(
+        {
+            target
+            for uncertainty in payload.uncertainties
+            for target in uncertainty.target_ids
+            if target not in graph_ids
+        }
+    )
+    if invalid_targets:
+        message = "Die Neuinterpretation enthält ungültige Unsicherheitsziele."
+        raise AnalysisValidationError(message)
+
+
+def _preserve_non_graph_uncertainties(document: DocumentIR) -> list[Uncertainty]:
+    old_graph_ids = {node.id for node in document.graph.nodes} | {
+        edge.id for edge in document.graph.edges
+    }
+    preserved: list[Uncertainty] = []
+    for uncertainty in document.uncertainties:
+        targets = [target for target in uncertainty.target_ids if target not in old_graph_ids]
+        if targets:
+            preserved.append(uncertainty.model_copy(update={"target_ids": targets}))
+    return preserved
 
 
 def _decide_diagram(

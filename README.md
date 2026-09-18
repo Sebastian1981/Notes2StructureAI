@@ -49,16 +49,18 @@ uv run notes2structure-ui
 
 Die Anwendung öffnet `http://127.0.0.1:7860` im Browser. Dort kannst du ein PNG/JPEG per
 Dateiauswahl oder Drag-and-drop ablegen oder einen OneNote-Screenshot direkt aus der
-Zwischenablage einfügen. Danach wählst du automatische Erkennung, Reinschrift, strukturierte
-Notizen, Mindmap, Prozess- oder Architekturdiagramm.
+Zwischenablage einfügen. **Vollständig analysieren** erzeugt mit einem OpenAI-Aufruf gemeinsam
+Reinschrift, strukturierte Notizen und – wenn erkennbar – das automatisch passende Diagramm.
 
 Vor jeder externen Analyse muss die Checkbox zur Bildübertragung aktiviert werden. Die
 Oberfläche selbst ist nur lokal erreichbar; Gradio-Telemetrie und öffentliche Freigabelinks sind
 deaktiviert. Reinschrift, Notizen, eine lokal erzeugte Diagrammgrafik, Mermaid-Quelltext und JSON
-erscheinen zunächst nur als Vorschau. Erst **Ergebnis speichern** erzeugt einen neuen
-`run-...`-Ordner. **Verwerfen** sowie
-ein Bild- oder Typwechsel entfernen die Vorschau ohne Veröffentlichung. Die bereits erfolgte
-Provideranalyse kann unabhängig vom Speichern Kosten verursacht haben.
+erscheinen zunächst nur als Vorschau. Im Diagramm-Tab kannst du das vorhandene validierte JSON
+optional als Mindmap, Prozess oder Architektur neu interpretieren lassen. Das ist jeweils ein
+sichtbar gekennzeichneter zusätzlicher OpenAI-Aufruf, überträgt aber nicht erneut das Bild.
+Erst **Ergebnis speichern** erzeugt einen neuen `run-...`-Ordner. **Verwerfen** oder ein Bildwechsel
+entfernen die Vorschau ohne Veröffentlichung. Bereits erfolgte Provideraufrufe können unabhängig
+vom Speichern Kosten verursacht haben.
 
 ## Qualitätsprüfungen
 

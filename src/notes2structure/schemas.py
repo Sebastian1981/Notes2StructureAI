@@ -224,6 +224,14 @@ class AnalysisPayload(StrictModel):
         return self
 
 
+class ReinterpretationPayload(StrictModel):
+    """Graph-only result derived from an already validated analysis."""
+
+    graph: Graph
+    uncertainties: Annotated[list[Uncertainty], Field(max_length=1_000)]
+    warnings: Annotated[list[LongText], Field(max_length=100)]
+
+
 class DocumentIR(StrictModel):
     schema_version: Literal["1.0"]
     mode: Mode

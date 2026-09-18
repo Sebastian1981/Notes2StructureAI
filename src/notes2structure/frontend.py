@@ -5,7 +5,6 @@ from __future__ import annotations
 import html
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Final
 
 import gradio as gr
 
@@ -13,21 +12,18 @@ from notes2structure.application import (
     AnalysisPreview,
     build_provider,
     create_preview,
+    reinterpret_preview,
     save_preview,
 )
 from notes2structure.config import load_configuration
 from notes2structure.errors import Notes2StructureError
 from notes2structure.providers.base import AnalysisOptions
 from notes2structure.renderers.svg import render_svg_preview
-from notes2structure.schemas import KnownType, Mode
+from notes2structure.schemas import DiagramStatus, DocumentType, KnownType, Mode
 
-AUTO = "Automatisch erkennen"
-TRANSCRIBE = "Nur Reinschrift"
-NOTES = "Strukturierte Notizen"
 MINDMAP = "Mindmap"
 PROCESS = "Prozessdiagramm"
 ARCHITECTURE = "Architekturdiagramm"
-OUTPUT_CHOICES: Final = (AUTO, TRANSCRIBE, NOTES, MINDMAP, PROCESS, ARCHITECTURE)
 
 _CSS = """
 .n2s-shell { max-width: 1450px; margin: 0 auto; }
@@ -50,20 +46,16 @@ class PreviewView:
     result_json: str
 
 
-def selection_to_options(selection: str) -> AnalysisOptions:
-    """Map one explicit UI choice to the existing provider contract."""
+def _reinterpretation_type(selection: str) -> KnownType:
     choices = {
-        AUTO: AnalysisOptions(Mode.FULL, None),
-        TRANSCRIBE: AnalysisOptions(Mode.TRANSCRIBE, None),
-        NOTES: AnalysisOptions(Mode.FULL, KnownType.NOTES),
-        MINDMAP: AnalysisOptions(Mode.FULL, KnownType.MINDMAP),
-        PROCESS: AnalysisOptions(Mode.FULL, KnownType.PROCESS),
-        ARCHITECTURE: AnalysisOptions(Mode.FULL, KnownType.ARCHITECTURE),
+        MINDMAP: KnownType.MINDMAP,
+        PROCESS: KnownType.PROCESS,
+        ARCHITECTURE: KnownType.ARCHITECTURE,
     }
     try:
         return choices[selection]
     except KeyError as error:
-        message = "Die gewählte Ausgabeart ist ungültig."
+        message = "Die gewählte Neuinterpretation ist ungültig."
         raise ValueError(message) from error
 
 
@@ -97,10 +89,21 @@ def preview_to_view(preview: AnalysisPreview) -> PreviewView:
 
 def _analyze(
     image_path: str | None,
-    selection: str,
     allow_remote: bool,
     env_file: str,
-) -> tuple[AnalysisPreview, str, str, str, str, str, str, gr.Button]:
+) -> tuple[
+    AnalysisPreview,
+    str,
+    str,
+    str,
+    str,
+    str,
+    str,
+    gr.Button,
+    gr.Button,
+    gr.Button,
+    gr.Button,
+]:
     if image_path is None:
         message = "Bitte füge zuerst ein PNG- oder JPEG-Bild ein."
         raise gr.Error(message)
@@ -109,11 +112,10 @@ def _analyze(
         provider = build_provider(load_configuration(env_path))
         preview = create_preview(
             Path(image_path),
-            selection_to_options(selection),
+            AnalysisOptions(Mode.FULL, None),
             provider,
             allow_remote=allow_remote,
         )
-        view = preview_to_view(preview)
     except Notes2StructureError as error:
         raise gr.Error(str(error)) from error
     except ValueError as error:
@@ -121,14 +123,100 @@ def _analyze(
     except Exception as error:
         message = "Unerwarteter interner Fehler bei der Analyse."
         raise gr.Error(message) from error
+    return _preview_outputs(preview)
+
+
+def _reinterpret(
+    preview: AnalysisPreview | None,
+    selection: str,
+    allow_remote: bool,
+    env_file: str,
+) -> tuple[
+    AnalysisPreview,
+    str,
+    str,
+    str,
+    str,
+    str,
+    str,
+    gr.Button,
+    gr.Button,
+    gr.Button,
+    gr.Button,
+]:
+    if preview is None:
+        message = "Bitte führe zuerst die vollständige Analyse aus."
+        raise gr.Error(message)
+    requested_type = _reinterpretation_type(selection)
+    current_type = preview.document.classification.effective_type
+    same_requested_type = preview.document.classification.requested_type is requested_type
+    current_diagram_exists = preview.document.diagram.status is DiagramStatus.GENERATED
+    if current_type == DocumentType(requested_type.value) and (
+        same_requested_type or current_diagram_exists
+    ):
+        return _preview_outputs(
+            preview,
+            status=(
+                "### Bereits vorhanden\n\n"
+                f"✅ Das aktuelle Ergebnis ist bereits als {selection} dargestellt. "
+                "Es wurde kein weiterer OpenAI-Aufruf ausgeführt."
+            ),
+        )
+    env_path = Path(env_file.strip()) if env_file.strip() else None
+    try:
+        provider = build_provider(load_configuration(env_path))
+        updated = reinterpret_preview(
+            preview,
+            requested_type,
+            provider,
+            allow_remote=allow_remote,
+        )
+    except Notes2StructureError as error:
+        raise gr.Error(str(error)) from error
+    except ValueError as error:
+        raise gr.Error(str(error)) from error
+    except Exception as error:
+        message = "Unerwarteter interner Fehler bei der Neuinterpretation."
+        raise gr.Error(message) from error
+    return _preview_outputs(
+        updated,
+        status=(
+            f"### {selection} bereit\n\n"
+            "✅ Aus dem vorhandenen Analyse-JSON neu interpretiert; das Bild wurde nicht erneut "
+            "übertragen. Das Ergebnis ist noch nicht gespeichert."
+        ),
+    )
+
+
+def _preview_outputs(
+    preview: AnalysisPreview,
+    *,
+    status: str | None = None,
+) -> tuple[
+    AnalysisPreview,
+    str,
+    str,
+    str,
+    str,
+    str,
+    str,
+    gr.Button,
+    gr.Button,
+    gr.Button,
+    gr.Button,
+]:
+    view = preview_to_view(preview)
     return (
         preview,
-        view.status,
+        status or view.status,
         view.transcript,
         view.notes,
         view.diagram,
         view.diagram_source,
         view.result_json,
+        gr.Button(interactive=True),
+        gr.Button(interactive=True),
+        gr.Button(interactive=True),
         gr.Button(interactive=True),
     )
 
@@ -156,20 +244,48 @@ def _save(
     )
 
 
-def _reset_preview() -> tuple[None, str, str, str, str, str, str, gr.Button]:
+def _reset_preview() -> tuple[
+    None,
+    str,
+    str,
+    str,
+    str,
+    str,
+    str,
+    gr.Button,
+    gr.Button,
+    gr.Button,
+    gr.Button,
+]:
     return (
         None,
-        "### Bereit\n\nFüge ein Bild ein und wähle die gewünschte Ausgabe.",
+        "### Bereit\n\nFüge ein Bild ein und starte die vollständige Analyse.",
         "",
         "",
         "",
         "",
         "",
         gr.Button(interactive=False),
+        gr.Button(interactive=False),
+        gr.Button(interactive=False),
+        gr.Button(interactive=False),
     )
 
 
-def _discard() -> tuple[None, None, str, str, str, str, str, str, gr.Button]:
+def _discard() -> tuple[
+    None,
+    None,
+    str,
+    str,
+    str,
+    str,
+    str,
+    str,
+    gr.Button,
+    gr.Button,
+    gr.Button,
+    gr.Button,
+]:
     reset = _reset_preview()
     return (reset[0], None, *reset[1:])
 
@@ -199,18 +315,17 @@ def build_frontend() -> gr.Blocks:
                         buttons=["fullscreen"],
                         placeholder="PNG/JPEG hier ablegen oder aus der Zwischenablage einfügen",
                     )
-                    selection = gr.Radio(
-                        choices=OUTPUT_CHOICES,
-                        value=AUTO,
-                        label="2. Gewünschte Ausgabe",
-                        info="Automatisch erkennt den Dokumenttyp; eine Vorgabe dient als Hinweis.",
+                    gr.Markdown(
+                        "**2. Vollständig analysieren**  \n"
+                        "Ein OpenAI-Aufruf erzeugt gemeinsam Reinschrift, strukturierte Notizen "
+                        "und das automatisch passende Diagramm."
                     )
                     allow_remote = gr.Checkbox(
                         value=False,
-                        label="Bildübertragung an OpenAI für diese Analyse erlauben",
+                        label="Übertragung an OpenAI für diese Analyse erlauben",
                         info=(
-                            "Die Oberfläche läuft lokal; die Bildanalyse verwendet den "
-                            "konfigurierten externen Provider."
+                            "Die erste Analyse überträgt das Bild. Optionale Neuinterpretationen "
+                            "übertragen nur das bereits validierte Analyse-JSON."
                         ),
                     )
                     with gr.Accordion("Lokale Einstellungen", open=False):
@@ -220,12 +335,12 @@ def build_frontend() -> gr.Blocks:
                             label="Ausgabeverzeichnis",
                         )
                     with gr.Row(elem_classes="n2s-actions"):
-                        analyze_button = gr.Button("Jetzt analysieren", variant="primary")
+                        analyze_button = gr.Button("Vollständig analysieren", variant="primary")
                         save_button = gr.Button("Ergebnis speichern", interactive=False)
                         discard_button = gr.Button("Verwerfen")
                 with gr.Column(scale=7):
                     status = gr.Markdown(
-                        "### Bereit\n\nFüge ein Bild ein und wähle die gewünschte Ausgabe.",
+                        "### Bereit\n\nFüge ein Bild ein und starte die vollständige Analyse.",
                         elem_classes="n2s-status",
                     )
                     with gr.Tabs():
@@ -245,6 +360,24 @@ def build_frontend() -> gr.Blocks:
                                     buttons=["copy", "download"],
                                     lines=12,
                                 )
+                            gr.Markdown(
+                                "**Optional anders darstellen**  \n"
+                                "Jede Neuinterpretation kann einen zusätzlichen OpenAI-Aufruf "
+                                "auslösen, verwendet aber nicht erneut das Bild."
+                            )
+                            with gr.Row():
+                                mindmap_button = gr.Button(
+                                    "Als Mindmap",
+                                    interactive=False,
+                                )
+                                process_button = gr.Button(
+                                    "Als Prozess",
+                                    interactive=False,
+                                )
+                                architecture_button = gr.Button(
+                                    "Als Architektur",
+                                    interactive=False,
+                                )
                         with gr.Tab("JSON"):
                             result_json = gr.Code(
                                 language="json",
@@ -262,10 +395,13 @@ def build_frontend() -> gr.Blocks:
             diagram_source,
             result_json,
             save_button,
+            mindmap_button,
+            process_button,
+            architecture_button,
         ]
         analyze_button.click(
             _analyze,
-            inputs=[image, selection, allow_remote, env_file],
+            inputs=[image, allow_remote, env_file],
             outputs=preview_outputs,
             api_visibility="private",
             concurrency_limit=1,
@@ -286,11 +422,19 @@ def build_frontend() -> gr.Blocks:
             outputs=preview_outputs,
             api_visibility="private",
         )
-        selection.change(
-            _reset_preview,
-            outputs=preview_outputs,
-            api_visibility="private",
-        )
+        for button, selection in (
+            (mindmap_button, MINDMAP),
+            (process_button, PROCESS),
+            (architecture_button, ARCHITECTURE),
+        ):
+            target = gr.State(value=selection)
+            button.click(
+                _reinterpret,
+                inputs=[preview_state, target, allow_remote, env_file],
+                outputs=preview_outputs,
+                api_visibility="private",
+                concurrency_limit=1,
+            )
     return demo.queue(default_concurrency_limit=1, max_size=4, api_open=False)
 
 

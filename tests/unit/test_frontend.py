@@ -3,47 +3,19 @@ from __future__ import annotations
 from pathlib import Path
 
 import gradio as gr
-import pytest
 
 from notes2structure.application import create_preview
-from notes2structure.frontend import (
-    ARCHITECTURE,
-    AUTO,
-    MINDMAP,
-    NOTES,
-    PROCESS,
-    TRANSCRIBE,
-    build_frontend,
-    preview_to_view,
-    selection_to_options,
-)
+from notes2structure.frontend import build_frontend, preview_to_view
 from notes2structure.providers.base import AnalysisOptions
-from notes2structure.schemas import KnownType, Mode
+from notes2structure.schemas import Mode
 from tests.support import FakeProvider, process_payload, write_png
-
-
-@pytest.mark.parametrize(
-    ("selection", "expected"),
-    [
-        (AUTO, AnalysisOptions(Mode.FULL, None)),
-        (TRANSCRIBE, AnalysisOptions(Mode.TRANSCRIBE, None)),
-        (NOTES, AnalysisOptions(Mode.FULL, KnownType.NOTES)),
-        (MINDMAP, AnalysisOptions(Mode.FULL, KnownType.MINDMAP)),
-        (PROCESS, AnalysisOptions(Mode.FULL, KnownType.PROCESS)),
-        (ARCHITECTURE, AnalysisOptions(Mode.FULL, KnownType.ARCHITECTURE)),
-    ],
-)
-def test_frontend_selection_maps_to_analysis_options(
-    selection: str, expected: AnalysisOptions
-) -> None:
-    assert selection_to_options(selection) == expected
 
 
 def test_frontend_view_contains_inline_mermaid_without_saving(tmp_path: Path) -> None:
     image = write_png(tmp_path / "process.png")
     preview = create_preview(
         image,
-        AnalysisOptions(Mode.FULL, KnownType.PROCESS),
+        AnalysisOptions(Mode.FULL, None),
         FakeProvider(process_payload()),
         allow_remote=False,
     )
