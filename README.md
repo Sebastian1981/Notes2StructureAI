@@ -54,8 +54,9 @@ Notizen, Mindmap, Prozess- oder Architekturdiagramm.
 
 Vor jeder externen Analyse muss die Checkbox zur Bildübertragung aktiviert werden. Die
 Oberfläche selbst ist nur lokal erreichbar; Gradio-Telemetrie und öffentliche Freigabelinks sind
-deaktiviert. Reinschrift, Notizen, Mermaid-Diagramm und JSON erscheinen zunächst nur als
-Vorschau. Erst **Ergebnis speichern** erzeugt einen neuen `run-...`-Ordner. **Verwerfen** sowie
+deaktiviert. Reinschrift, Notizen, eine lokal erzeugte Diagrammgrafik, Mermaid-Quelltext und JSON
+erscheinen zunächst nur als Vorschau. Erst **Ergebnis speichern** erzeugt einen neuen
+`run-...`-Ordner. **Verwerfen** sowie
 ein Bild- oder Typwechsel entfernen die Vorschau ohne Veröffentlichung. Die bereits erfolgte
 Provideranalyse kann unabhängig vom Speichern Kosten verursacht haben.
 

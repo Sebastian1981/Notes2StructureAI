@@ -44,7 +44,7 @@ Der Paket-Entry-Point `notes2structure-ui` startet eine lokale Browser-Oberfläc
 
 Die Auswahl `Automatisch erkennen`, `Nur Reinschrift`, `Strukturierte Notizen`, `Mindmap`, `Prozessdiagramm` oder `Architekturdiagramm` wird auf die bestehenden Modi und Dokumenttypen abgebildet. Vor jedem externen Provideraufruf muss der Nutzer die Bildübertragung in der Oberfläche ausdrücklich freigeben.
 
-Nach erfolgreicher Analyse zeigt das Frontend Reinschrift, strukturierte Notizen, eine Mermaid-Vorschau beziehungsweise den Grund für ein fehlendes Diagramm sowie das validierte JSON. Zu diesem Zeitpunkt entsteht kein Ergebnisordner. `Ergebnis speichern` veröffentlicht dieselben bereits gerenderten Artefakte ohne weiteren Provideraufruf; `Verwerfen`, eine neue Bildauswahl oder eine geänderte Ausgabeart entfernt die Vorschau ohne Veröffentlichung.
+Nach erfolgreicher Analyse zeigt das Frontend Reinschrift, strukturierte Notizen, eine lokal aus dem validierten Graphen erzeugte SVG-Diagrammvorschau beziehungsweise den Grund für ein fehlendes Diagramm, den Mermaid-Quelltext sowie das validierte JSON. Die SVG-Grafik dient nur der Vorschau und wird nicht als zusätzliches Ergebnisartefakt gespeichert. Zu diesem Zeitpunkt entsteht kein Ergebnisordner. `Ergebnis speichern` veröffentlicht dieselben bereits gerenderten Textartefakte ohne weiteren Provideraufruf; `Verwerfen`, eine neue Bildauswahl oder eine geänderte Ausgabeart entfernt die Vorschau ohne Veröffentlichung.
 
 ## 4. Eingaben
 
@@ -157,7 +157,7 @@ Die Abnahme kombiniert automatisierte Softwaretests mit einem kleinen Live-Smoke
 | AC-11 | Leeres, unleserliches oder strukturarmes Bild liefert ein überprüfbares Ergebnis mit Warnung; keine erfundenen Knoten/Kanten und kein vorgetäuschtes Diagramm. |
 | AC-12 | Lint-, Format-, Typ-, Test- und Paketprüfungen sind in CI erfolgreich; die normale Testsuite benötigt weder Netz noch API-Schlüssel. |
 | AC-13 | Vor v0.1-Abnahme mindestens ein freigegebenes Bild pro Kern-Dokumenttyp sowie ein schwieriges Beispiel mit echtem Provider prüfen. Transkription, Zahlen, Klassifikation, Beziehungen und Unsicherheiten mit dem Original vergleichen; beobachtete Fehler und Modell-/Prompt-Version dokumentieren. |
-| AC-14 | Das lokale Frontend lässt Bild-Upload und Zwischenablage, alle sechs Ausgabearten sowie die ausdrückliche Remote-Freigabe erkennen. Ein Start bindet nur an `127.0.0.1` und erzeugt keinen öffentlichen Freigabelink. |
+| AC-14 | Das lokale Frontend lässt Bild-Upload und Zwischenablage, alle sechs Ausgabearten sowie die ausdrückliche Remote-Freigabe erkennen. Erzeugte Diagramme erscheinen als sichere lokale SVG-Grafik; der Mermaid-Quelltext bleibt separat verfügbar. Ein Start bindet nur an `127.0.0.1` und erzeugt keinen öffentlichen Freigabelink. |
 | AC-15 | Eine Analyse erzeugt eine Vorschau ohne Ergebnisordner. Erst `Ergebnis speichern` veröffentlicht die erwarteten Artefakte und verursacht keinen zweiten Provideraufruf; Verwerfen und Eingabeänderungen invalidieren die Vorschau. |
 
 ## 10. Out of Scope und spätere Optionen

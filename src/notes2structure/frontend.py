@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import html
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Final
@@ -17,6 +18,7 @@ from notes2structure.application import (
 from notes2structure.config import load_configuration
 from notes2structure.errors import Notes2StructureError
 from notes2structure.providers.base import AnalysisOptions
+from notes2structure.renderers.svg import render_svg_preview
 from notes2structure.schemas import KnownType, Mode
 
 AUTO = "Automatisch erkennen"
@@ -32,6 +34,7 @@ _CSS = """
 .n2s-hero { padding: 0.5rem 0 0.25rem; }
 .n2s-status { border-left: 4px solid #168aad; padding-left: 0.9rem; }
 .n2s-actions button { min-height: 44px; }
+.n2s-empty-diagram { padding: 2rem; color: #516873; }
 """
 
 
@@ -78,11 +81,10 @@ def preview_to_view(preview: AnalysisPreview) -> PreviewView:
         "_Für die reine Transkription werden keine strukturierten Notizen erzeugt._\n",
     )
     diagram_source = preview.artifacts.get("diagram.mmd", "")
-    if diagram_source:
-        diagram = f"```mermaid\n{diagram_source.rstrip()}\n```\n"
-    else:
+    diagram = render_svg_preview(document)
+    if diagram is None:
         reason = document.diagram.reason or "Für diese Auswahl ist kein Diagramm vorgesehen."
-        diagram = f"_Kein Diagramm erzeugt: {reason}_\n"
+        diagram = f'<p class="n2s-empty-diagram">Kein Diagramm erzeugt: {html.escape(reason)}</p>'
     return PreviewView(
         status=status,
         transcript=preview.artifacts["transcript.md"],
@@ -232,7 +234,10 @@ def build_frontend() -> gr.Blocks:
                         with gr.Tab("Notizen"):
                             notes = gr.Markdown(buttons=["copy"])
                         with gr.Tab("Diagramm"):
-                            diagram = gr.Markdown()
+                            diagram = gr.HTML(
+                                min_height=430,
+                                apply_default_css=False,
+                            )
                             with gr.Accordion("Mermaid-Quelltext", open=False):
                                 diagram_source = gr.Code(
                                     language="markdown",

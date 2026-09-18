@@ -81,7 +81,8 @@ Notes2StructureAI/
 │   │   └── analyze_v5.md
 │   └── renderers/
 │       ├── markdown.py
-│       └── mermaid.py
+│       ├── mermaid.py
+│       └── svg.py
 └── tests/
     ├── unit/
     ├── integration/
@@ -220,7 +221,7 @@ Diagrammstatus `generated` heißt: Mermaid-Quelltext wird als Teil des vollstän
 
 Der Writer erhält ein Mapping fester Dateinamen zu Texten. Er erzeugt ein exklusives temporäres Verzeichnis im Ausgabeverzeichnis und veröffentlicht es erst nach vollständigem Schreiben unter `run-<uuid4-hex>`. Ein bestehendes Ziel ist ein Fehler; nie ersetzen. Bei gewöhnlichen Fehlern eigene temporäre Dateien aufräumen. Nach Stromausfall oder Prozessabbruch können temporäre Reste bleiben; kein Anspruch auf transaktionale Dauerhaftigkeit über Hardwareausfälle hinweg.
 
-Das Frontend hält `DocumentIR` und gerenderte Textartefakte sitzungsgebunden im Gradio-State. Die Mermaid-Vorschau verwendet ausschließlich den bereits sicher gerenderten `.mmd`-Text in der Markdown-Komponente. Eine Speicheraktion übergibt exakt diese Artefakte an den Writer und löst keine erneute Analyse aus. Bildwechsel, Typwechsel und Verwerfen invalidieren den State. Das Frontend startet mit deaktivierter Gradio-Analyse, ohne Sharing, Monitoring oder MCP-Endpunkt und bindet ausschließlich an `127.0.0.1`.
+Das Frontend hält `DocumentIR` und gerenderte Textartefakte sitzungsgebunden im Gradio-State. Für die grafische Vorschau erzeugt ein zusätzlicher reiner Renderer aus dem validierten Graphen statisches SVG mit festem Layout, HTML-Escaping und ohne Skripte, Links oder externe Ressourcen. Diese SVG-Vorschau wird nicht an den Writer übergeben; der gespeicherte Diagrammvertrag bleibt `diagram.mmd`. Eine Speicheraktion übergibt exakt die regulären Artefakte an den Writer und löst keine erneute Analyse aus. Bildwechsel, Typwechsel und Verwerfen invalidieren den State. Das Frontend startet mit deaktivierter Gradio-Analyse, ohne Sharing, Monitoring oder MCP-Endpunkt und bindet ausschließlich an `127.0.0.1`.
 
 ## 8. Fehlerbehandlung und Beobachtbarkeit
 

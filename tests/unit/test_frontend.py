@@ -51,7 +51,8 @@ def test_frontend_view_contains_inline_mermaid_without_saving(tmp_path: Path) ->
     view = preview_to_view(preview)
 
     assert "noch nicht gespeichert" in view.status
-    assert view.diagram.startswith("```mermaid")
+    assert view.diagram.startswith("<svg")
+    assert "Start" in view.diagram
     assert "flowchart TD" in view.diagram_source
     assert '"schema_version": "1.0"' in view.result_json
 
