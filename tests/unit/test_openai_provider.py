@@ -100,11 +100,16 @@ def test_request_uses_structured_output_original_detail_and_no_storage() -> None
     assert request["store"] is False
     assert request["text_format"] is AnalysisPayload
     assert request["timeout"] == 60.0
-    assert provider.prompt_version == "analyze-v3"
+    assert provider.prompt_version == "analyze-v5"
     instructions = request["instructions"]
     assert isinstance(instructions, str)
     assert "`kind` is `classification`, `target_ids` must contain the exact literal" in instructions
-    assert "When `detected_type` is `notes` or `unknown`, return empty graph" in instructions
+    assert "use the requested type when it is not `auto`" in instructions
+    assert "single most plausible reading directly into the" in instructions
+    assert "state that the word was reconstructed" in instructions
+    assert "Use `[unleserlich]` and status `unreadable` only" in instructions
+    assert "uncertain numbers, identifiers, personal names" in instructions
+    assert "effective analysis type is `notes` or `unknown`" in instructions
     assert "exactly one fewer edge than nodes" in instructions
     assert (
         "Every `source_ids`, graph endpoint, and uncertainty target must reference" in instructions

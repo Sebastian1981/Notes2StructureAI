@@ -50,9 +50,9 @@ Der erfolgreiche Aufruf schreibt genau den Pfad des fertigen Ergebnisverzeichnis
 
 ### 5.1 Transkription
 
-**FR-01:** Lesbaren Text möglichst wortnah und ohne stilistische Glättung wiedergeben. Rechtschreibung, Zahlen und Eigennamen nicht still korrigieren. Erkennbare Zeilen oder räumliche Gruppen in einer plausiblen Lesereihenfolge als Segmente erfassen; kein pixelgenaues Layout rekonstruieren.
+**FR-01:** Lesbaren Text möglichst wortnah und ohne stilistische Glättung wiedergeben. Rechtschreibung, Zahlen und Eigennamen nicht still korrigieren. Bei einem teilweise lesbaren gewöhnlichen Wort die anhand sichtbarer Striche, Quellsprache und unmittelbarem Kontext plausibelste Lesart in den Segmenttext einsetzen und das Segment als `uncertain` kennzeichnen. Unsichere Zahlen, Kennungen, Personennamen oder andere bedeutungskritische Werte nicht allein aufgrund von Kontext ergänzen. Erkennbare Zeilen oder räumliche Gruppen in einer plausiblen Lesereihenfolge als Segmente erfassen; kein pixelgenaues Layout rekonstruieren.
 
-**FR-02:** Jedes Segment erhält eine lokale ID, seinen Text und den Status `clear`, `uncertain` oder `unreadable`. Vollständig unlesbare Segmente enthalten den Platzhalter `[unleserlich]`, teilunlesbare Textstellen denselben Platzhalter innerhalb des Textes. Unsichere Lesarten und Alternativen gehören zusätzlich in die Unsicherheitsliste. Markdown zeigt die IDs, Status und Hinweise, sodass keine unsichere Lesart wie gesicherter Text erscheint.
+**FR-02:** Jedes Segment erhält eine lokale ID, seinen Text und den Status `clear`, `uncertain` oder `unreadable`. Eine plausible Rekonstruktion steht direkt im Text eines `uncertain`-Segments; der zugehörige Unsicherheitseintrag erklärt die Rekonstruktion und nennt gegebenenfalls weitere glaubhafte Lesarten. `[unleserlich]` wird nur verwendet, wenn keine vertretbare Lesart möglich ist, einschließlich nicht sicher rekonstruierbarer bedeutungskritischer Werte. Markdown zeigt die IDs, Status und Hinweise, sodass keine unsichere Lesart wie gesicherter Text erscheint.
 
 ### 5.2 Strukturierte Notizen
 
@@ -90,7 +90,7 @@ Der erfolgreiche Aufruf schreibt genau den Pfad des fertigen Ergebnisverzeichnis
 
 Jede Unsicherheit besitzt ID, Art (`text`, `classification`, `structure`, `relation`), betroffene Objekt-IDs oder das Ziel `classification`, eine konkrete Erklärung und optional alternative Lesarten. Statuswerte sind qualitative Modellurteile, keine kalibrierten Wahrscheinlichkeiten.
 
-- Unlesbarer Text wird nicht ergänzt; alternative Lesarten bleiben als Alternativen sichtbar.
+- Bei teilweise lesbaren gewöhnlichen Wörtern steht die plausibelste Lesart im Transkript; Status und Unsicherheitseintrag machen die Rekonstruktion sichtbar. Weitere glaubhafte Lesarten bleiben als Alternativen erhalten. Ohne vertretbare Lesart wird nichts ergänzt.
 - Aus sichtbarem Text abgeleitete Notizpunkte und Graphknoten übernehmen dessen Unsicherheit.
 - Mehrdeutige Pfeile erhalten eine Erklärung; nicht belegbare Beziehungen werden ausgelassen.
 - Ein leeres oder vollständig unleserliches, technisch gültiges Bild ist kein Programmfehler: leere Inhalte oder unleserliche Segmente, `unknown` im Modus `full`, kein Diagramm und ein sichtbarer Warnhinweis.
@@ -137,7 +137,7 @@ Die Abnahme kombiniert automatisierte Softwaretests mit einem kleinen Live-Smoke
 | AC-01 | Gültiges PNG und JPEG werden im Modus `full` mit Fake-Provider verarbeitet: Exit `0`, drei Pflichtdateien, gültige IR und unveränderte Quelldatei. |
 | AC-02 | `transcribe` erzeugt genau zwei Pflichtdateien, leere Struktur-/Graphfelder, keine Klassifikation und kein Diagramm; eine Typvorgabe wird mit Exit `2` abgelehnt. |
 | AC-03 | Synthetische Fixtures decken alle fünf erkannten Typen ab. Diagrammtypen erzeugen bei nutzbarem Graph `.mmd`, `notes`/`unknown` nicht. |
-| AC-04 | Unleserliche Segmente, mehrdeutige Zahlen, unsichere Kanten und Typkonflikte bleiben in JSON und Markdown sichtbar; Graphunsicherheit erscheint auch in Mermaid. `review_required` stimmt. |
+| AC-04 | Teilweise lesbare gewöhnliche Wörter erhalten eine als unsicher markierte plausibelste Lesart; unleserliche Segmente, mehrdeutige Zahlen, Alternativen, unsichere Kanten und Typkonflikte bleiben in JSON und Markdown sichtbar; Graphunsicherheit erscheint auch in Mermaid. `review_required` stimmt. |
 | AC-05 | Fehlender Pfad, kaputtes Bild, Formatkonflikt, Animation und überschrittene Eingabegrenzen führen vor einem Provideraufruf zu Exit `2`. EXIF-Orientierung, Transparenz und Metadatenentfernung sind geprüft. |
 | AC-06 | Fehlende Remote-Freigabe verursacht null Requests und Exit `2`. Geheime Konfiguration und Dokumentinhalte erscheinen in keinem Log. |
 | AC-07 | Ungültiges JSON, falsche Typen, Zusatzfelder, doppelte IDs und verwaiste Referenzen führen zu Exit `4`, ohne fertiges Ergebnisverzeichnis. |

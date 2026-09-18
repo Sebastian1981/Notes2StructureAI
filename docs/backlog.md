@@ -1,6 +1,6 @@
 # Notes2StructureAI — Produkt-Backlog
 
-Stand: 17. September 2026
+Stand: 18. September 2026
 
 Dieses Backlog zerlegt die Anforderungen aus [spec.md](spec.md) und
 [architecture.md](architecture.md) in kleine, überprüfbare Arbeitspakete. Die Spezifikation
@@ -91,6 +91,7 @@ Ohne ausdrückliche Freigabe werden keine Bilddaten übertragen.
 | US-021 | Als Nutzer möchte ich jeder externen Übertragung ausdrücklich zustimmen, damit kein Bild versehentlich das Gerät verlässt. | Ohne `--allow-remote` gibt es null Requests und Exitcode 2; nur normalisiertes Bild und notwendiger Prompt werden übertragen. | `Erledigt` |
 | US-022 | Als Nutzer möchte ich begrenzte, verständliche Providerfehlerbehandlung, damit vorübergehende Fehler nicht zu unkontrollierten Kosten führen. | Höchstens drei Versuche, festgelegte Zeitgrenzen und nur erlaubte Retry-Fälle; SDK-Retries sind nicht zusätzlich aktiv. | `Erledigt` |
 | US-023 | Als Anwendung möchte ich Providerantworten lokal validieren, damit ungültiges oder eingeschleustes Modellformat nicht als Ergebnis veröffentlicht wird. | Antwortgröße ist begrenzt; keine automatische Reparatur; SDK-Daten werden in `AnalysisPayload` übersetzt und anschließend streng validiert. | `Erledigt` |
+| US-029 | Als Nutzer möchte ich bei teilweise lesbaren gewöhnlichen Wörtern die plausibelste Lesart sehen, damit Transkript und Diagramm praktisch nutzbar bleiben. | Die Lesart steht im unsicheren Segment; Rekonstruktion und Alternativen bleiben sichtbar; Zahlen, Kennungen und Eigennamen werden nicht kontextuell geraten. | `Erledigt` |
 
 Zugeordnete Abnahme: AC-06 bis AC-08.
 
