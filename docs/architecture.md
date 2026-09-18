@@ -1,6 +1,6 @@
 # Notes2StructureAI — Architektur v0.1
 
-Status: Zielarchitektur des MVP. Produktverhalten und Abnahme stehen in [spec.md](spec.md), Arbeitsregeln in [AGENTS.md](../AGENTS.md). Die Architektur verwendet eine synchrone Pipeline mit Pydantic-Modellen und lokalen Dateien. Es gibt weder einen autonomen Agenten noch einen serverseitigen Dienst.
+Status: Zielarchitektur des MVP mit lokalem Showcase-Frontend. Produktverhalten und Abnahme stehen in [spec.md](spec.md), Arbeitsregeln in [AGENTS.md](../AGENTS.md). Die Architektur verwendet eine synchrone Pipeline mit Pydantic-Modellen und lokalen Dateien. Es gibt weder einen autonomen Agenten noch einen öffentlich erreichbaren Dienst.
 
 ## 1. Entscheidungen
 
@@ -9,6 +9,7 @@ Status: Zielarchitektur des MVP. Produktverhalten und Abnahme stehen in [spec.md
 | Python 3.12, `src/`-Layout, `pyproject.toml`, `uv.lock` | Kleine, reproduzierbare und testbare Anwendung |
 | Pydantic v2, Pyright strict, Ruff, pytest | Validierte Laufzeitdaten plus statische und verhaltensbezogene Prüfungen |
 | `argparse`, `logging`, `pathlib` aus der Standardbibliothek | Für die kleine CLI genügen vorhandene Werkzeuge |
+| Gradio mit lokaler Loopback-Bindung | Kleine Bild-, Zwischenablage- und Vorschauoberfläche ohne separates JavaScript-Projekt |
 | Pillow für Bildprüfung und Normalisierung | Formatprüfung, Orientierung, RGB und Metadatenentfernung an einer Stelle |
 | Ein Provider-Protocol und ein konkreter Adapter | Austauschbarkeit an der tatsächlich variablen Grenze |
 | Eine gemeinsame IR | Transkription, Notizen und Diagramm bleiben aufeinander beziehbar |
@@ -22,24 +23,28 @@ Diese Festlegungen sind Projektentscheidungen, keine Behauptung, dass jede klein
 
 ```mermaid
 flowchart TD
-    CLI[CLI und Konfiguration] --> LOAD[Bild laden und normalisieren]
+    CLI[CLI] --> APP[Anwendungsdienst]
+    UI[Lokales Frontend] --> APP
+    APP --> LOAD[Bild laden und normalisieren]
     LOAD --> PROVIDER[Vision-Provider]
     PROVIDER --> VALIDATE[Analysevertrag validieren]
     VALIDATE --> IR[IR vervollständigen und fachlich prüfen]
     IR --> JSON[JSON serialisieren]
     IR --> MD[Markdown rendern]
     IR --> MMD[Mermaid rendern, falls geeignet]
-    JSON --> WRITE[Artefakte vollständig lokal veröffentlichen]
-    MD --> WRITE
-    MMD --> WRITE
+    JSON --> PREVIEW[Vorschau im Arbeitsspeicher]
+    MD --> PREVIEW
+    MMD --> PREVIEW
+    PREVIEW -->|CLI oder Speichern| WRITE[Artefakte vollständig lokal veröffentlichen]
+    PREVIEW -->|Verwerfen| DROP[Ohne Veröffentlichung beenden]
 ```
 
-1. CLI validiert Optionen, Konfiguration und Remote-Freigabe.
+1. CLI oder Frontend validieren Optionen, Konfiguration und Remote-Freigabe.
 2. Bildleser prüft die ursprüngliche Datei, bildet SHA-256 und normalisiert Bilddaten gemäß Spec. Dateiinhalte für Hash und Analyse stammen aus demselben gelesenen Snapshot.
 3. Provider erhält normalisierte Bildbytes, MIME-Typ und Analyseoptionen. Er liest keine Pfade und schreibt keine Dateien.
 4. Adapter überführt die Antwort in `AnalysisPayload`; anschließend prüft die Domain strukturelle und fachliche Invarianten.
 5. Pipeline ergänzt ausschließlich vertrauenswürdige Laufmetadaten, berechnet effektiven Typ, Diagrammstatus und Prüfstatus und erzeugt `DocumentIR`.
-6. Renderer erzeugen alle Inhalte im Speicher. Writer veröffentlicht das vollständige Dateiset in einem neuen Laufverzeichnis.
+6. Renderer erzeugen alle Inhalte im Speicher. Die CLI veröffentlicht sie unmittelbar; das Frontend zeigt sie zunächst nur als Vorschau und ruft den Writer erst nach der Speicheraktion auf.
 
 Klassifikation, Transkription und Struktur werden im Modus `full` möglichst in einer Analyse angefordert. Kein separater Klassifikationsaufruf und kein zweiter LLM-Aufruf zum Rendern. Das strukturelle Extrahieren durch ein Modell bleibt probabilistisch; die nachfolgenden Verarbeitungsschritte sind deterministisch.
 
@@ -60,7 +65,9 @@ Notes2StructureAI/
 │   └── architecture.md
 ├── src/notes2structure/
 │   ├── __init__.py
+│   ├── application.py
 │   ├── cli.py
+│   ├── frontend.py
 │   ├── config.py
 │   ├── pipeline.py
 │   ├── schemas.py
@@ -85,7 +92,7 @@ Die Struktur ist eine Umsetzungsvorgabe, keine Liste bereits vorhandener Dateien
 
 ## 4. Abhängigkeitsgrenzen
 
-`schemas.py` kennt nur Typen, Pydantic und reine Validierungslogik. Keine Imports aus Provider, CLI, Writer oder Renderer. `renderers/` darf die Domain importieren. `providers/base.py` definiert die schmale Schnittstelle mit Domain-Eingaben und -Ausgaben. Der konkrete Adapter kapselt SDK, Transport und Anbieterfehler. `pipeline.py` verwendet den Provider-Vertrag, nicht dessen Implementierung. `cli.py` verbindet die konkreten Bausteine.
+`schemas.py` kennt nur Typen, Pydantic und reine Validierungslogik. Keine Imports aus Provider, CLI, Writer oder Renderer. `renderers/` darf die Domain importieren. `providers/base.py` definiert die schmale Schnittstelle mit Domain-Eingaben und -Ausgaben. Der konkrete Adapter kapselt SDK, Transport und Anbieterfehler. `pipeline.py` verwendet den Provider-Vertrag, nicht dessen Implementierung. `application.py` verbindet Provider, Pipeline, Renderer und Writer für beide Bedienoberflächen. `cli.py` und `frontend.py` bleiben dünne Eingabeadapter und rufen einander nicht per Subprozess auf.
 
 Vorgesehene Schnittstellen, als typisierte Verträge zu implementieren:
 
@@ -212,6 +219,8 @@ Mermaid-IDs werden ausschließlich aus validierten Knoten-IDs gebildet. Labels w
 Diagrammstatus `generated` heißt: Mermaid-Quelltext wird als Teil des vollständigen Ergebnisses ausgegeben. Er bedeutet weder unabhängige semantische Verifikation noch Erzeugung eines Bildes. CI prüft das unterstützte Syntaxsubset mit einem fest versionierten Mermaid-Parser. Der Endnutzer benötigt nur dann eine Mermaid-Anzeige, wenn er `.mmd` visuell öffnen möchte.
 
 Der Writer erhält ein Mapping fester Dateinamen zu Texten. Er erzeugt ein exklusives temporäres Verzeichnis im Ausgabeverzeichnis und veröffentlicht es erst nach vollständigem Schreiben unter `run-<uuid4-hex>`. Ein bestehendes Ziel ist ein Fehler; nie ersetzen. Bei gewöhnlichen Fehlern eigene temporäre Dateien aufräumen. Nach Stromausfall oder Prozessabbruch können temporäre Reste bleiben; kein Anspruch auf transaktionale Dauerhaftigkeit über Hardwareausfälle hinweg.
+
+Das Frontend hält `DocumentIR` und gerenderte Textartefakte sitzungsgebunden im Gradio-State. Die Mermaid-Vorschau verwendet ausschließlich den bereits sicher gerenderten `.mmd`-Text in der Markdown-Komponente. Eine Speicheraktion übergibt exakt diese Artefakte an den Writer und löst keine erneute Analyse aus. Bildwechsel, Typwechsel und Verwerfen invalidieren den State. Das Frontend startet mit deaktivierter Gradio-Analyse, ohne Sharing, Monitoring oder MCP-Endpunkt und bindet ausschließlich an `127.0.0.1`.
 
 ## 8. Fehlerbehandlung und Beobachtbarkeit
 

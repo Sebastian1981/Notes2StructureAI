@@ -110,12 +110,25 @@ nachgewiesen.
 
 Zugeordnete Abnahme: AC-10, AC-12 und AC-13.
 
+## Epic 7 — Lokales Showcase-Frontend
+
+Ziel: Die vorhandene Pipeline kann ohne Terminal über eine bewusst kleine, ausschließlich lokal erreichbare Oberfläche ausprobiert und präsentiert werden.
+
+| ID | User Story | Abnahmekriterien | Status |
+| --- | --- | --- | --- |
+| US-030 | Als Nutzer möchte ich ein Bild per Dateiauswahl, Drag-and-drop oder Zwischenablage einfügen, damit besonders Screenshots aus OneNote ohne Pfadarbeit analysiert werden können. | PNG/JPEG werden in einer Bildvorschau angezeigt; Upload und Zwischenablage sind verfügbar; die bestehenden Eingabegrenzen bleiben maßgeblich. | `Erledigt` |
+| US-031 | Als Nutzer möchte ich Reinschrift, strukturierte Notizen, automatische Erkennung, Mindmap, Prozess- oder Architekturdiagramm auswählen, damit die bestehende Analyse verständlich steuerbar ist. | Jede UI-Auswahl wird deterministisch auf `Mode` und `requested_type` abgebildet und ist getestet. | `Erledigt` |
+| US-032 | Als Nutzer möchte ich das Ergebnis vor dem Speichern sehen, damit verworfene Versuche keinen Ergebnisordner hinterlassen. | Reinschrift, Notizen, Mermaid und JSON liegen als Sitzungsvorschau vor; erst Speichern ruft den Writer auf und verursacht keinen zweiten Provideraufruf. | `Erledigt` |
+| US-033 | Als Nutzer möchte ich die Datenübertragung weiterhin ausdrücklich bestätigen, damit die lokale Oberfläche den bestehenden Datenschutzvertrag nicht aufweicht. | Ohne Checkbox gibt es bei einem Remote-Provider keinen Request; Gradio-Telemetrie, Sharing, Monitoring und öffentliche Bindung sind deaktiviert. | `Erledigt` |
+| US-034 | Als Nutzer möchte ich die Oberfläche mit einem einfachen lokalen Befehl starten, damit sie ohne Frontend-Toolchain vorführbar ist. | `uv run notes2structure-ui` startet auf `127.0.0.1`; README, Paket-Entry-Point und Offline-Tests sind aktualisiert. | `Erledigt` |
+
+Zugeordnete Abnahme: AC-14 und AC-15.
+
 ## Empfohlene Reihenfolge
 
-Die Stories werden grundsätzlich nach ihrer Nummer umgesetzt. Die lokal und ohne externen
-Dienst umsetzbaren Epics 2 bis 4 sind abgeschlossen. Der nächste Arbeitsauftrag ist US-019:
-bewusste Auswahl des echten Vision-Anbieters. Diese Entscheidung benötigt den
-Projektverantwortlichen.
+Die Stories werden grundsätzlich nach ihrer Nummer umgesetzt. Das lokale Showcase-Frontend aus
+Epic 7 ist als dünner Adapter auf die bestehende Anwendung umgesetzt. Vor einem öffentlichen
+Release bleiben insbesondere die geplanten Prüfungen aus Epic 6 relevant.
 
 Erledigte Stories bleiben mit ihrem Status im Backlog erhalten. Ihr automatisierter Nachweis
 liegt hauptsächlich in `tests/unit/test_image_reader.py`, `test_pipeline.py`,

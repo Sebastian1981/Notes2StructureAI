@@ -4,20 +4,22 @@ Status: implementierbarer MVP-Vertrag. Diese Datei beschreibt Anforderungen, kei
 
 ## 1. Ziel
 
-Ein Nutzer startet lokal einen CLI-Aufruf für eine handschriftliche Notiz oder Skizze. Das Programm erzeugt überprüfbare digitale Artefakte und erhält die Unterscheidung zwischen erkanntem Inhalt und Interpretation. Das Originalbild bleibt unverändert.
+Ein Nutzer startet lokal einen CLI-Aufruf oder öffnet das lokale Browser-Frontend für eine handschriftliche Notiz oder Skizze. Das Programm erzeugt überprüfbare digitale Artefakte und erhält die Unterscheidung zwischen erkanntem Inhalt und Interpretation. Das Originalbild bleibt unverändert.
 
 Der MVP unterstützt deutsche und englische Handschrift sowie gemischte Beschriftungen. Er bewahrt die Quellsprache und macht Unsicherheiten sichtbar. Er garantiert weder fehlerfreie Erkennung noch fachliche Richtigkeit einer Interpretation.
 
 ## 2. Umfang und Grundentscheidungen
 
 - Eine Bilddatei je Aufruf, keine Verzeichnisverarbeitung und kein Hintergrundbetrieb.
-- Lokale CLI, lokale Konfiguration und lokale Ergebnisse; keine Bereitstellung eines Servers.
+- Lokale CLI, lokale Konfiguration und lokale Ergebnisse. Das optionale Frontend startet ausschließlich auf der Loopback-Schnittstelle; keine öffentliche oder Cloud-Bereitstellung.
 - Ein Vision-Provider mit einem konkreten Adapter für v0.1. Anbieter und Modell werden bei Implementierung dieses Adapters festgelegt, konfiguriert und dokumentiert; kein versteckter Standardanbieter.
 - Eine externe Vision-API ist optional zulässig. Vor jeder externen Übertragung muss `--allow-remote` gesetzt sein. Ohne dieses Flag sind externe Requests verboten. Ein lokales Modell ist ein späterer Erweiterungspunkt und kein MVP-Versprechen.
 - Ohne konfigurierten echten Provider ist reale Bilderkennung nicht verfügbar. Ein Fake dient ausschließlich Tests und ist kein Erkennungsersatz.
 - JSON ist die gemeinsame Quelle aller Text- und Diagrammausgaben; das Modell erzeugt keine direkt übernommenen Ausgabedateien.
 
-## 3. CLI und Modi
+## 3. Bedienoberflächen und Modi
+
+### 3.1 CLI
 
 Verbindlicher CLI-Vertrag; ein Paket-Entry-Point stellt `notes2structure` bereit:
 
@@ -35,6 +37,14 @@ Für einen konfigurierten externen Provider wird ausdrücklich `--allow-remote` 
 `--document-type` akzeptiert `auto`, `notes`, `mindmap`, `process`, `architecture`. Eine Vorgabe ist ein Interpretationshinweis, keine Erlaubnis, fehlende Strukturen zu erfinden. Das Ergebnis hält erkannte und gewünschte Klassifikation getrennt fest. In `transcribe` ist nur `auto` zulässig; andere Kombinationen sind Aufruffehler.
 
 Der erfolgreiche Aufruf schreibt genau den Pfad des fertigen Ergebnisverzeichnisses nach stdout. Diagnose und Warnungen gehen nach stderr. `--help` beschreibt die Modi, die mögliche Bildübertragung und Konfigurationsvariablen.
+
+### 3.2 Lokales Frontend
+
+Der Paket-Entry-Point `notes2structure-ui` startet eine lokale Browser-Oberfläche auf `127.0.0.1`. Sie akzeptiert genau ein PNG- oder JPEG-Bild per Dateiauswahl, Drag-and-drop oder Zwischenablage und zeigt das Eingabebild vor der Analyse an. Öffentliches Sharing, Monitoring-Endpunkte und Framework-Telemetrie sind deaktiviert.
+
+Die Auswahl `Automatisch erkennen`, `Nur Reinschrift`, `Strukturierte Notizen`, `Mindmap`, `Prozessdiagramm` oder `Architekturdiagramm` wird auf die bestehenden Modi und Dokumenttypen abgebildet. Vor jedem externen Provideraufruf muss der Nutzer die Bildübertragung in der Oberfläche ausdrücklich freigeben.
+
+Nach erfolgreicher Analyse zeigt das Frontend Reinschrift, strukturierte Notizen, eine Mermaid-Vorschau beziehungsweise den Grund für ein fehlendes Diagramm sowie das validierte JSON. Zu diesem Zeitpunkt entsteht kein Ergebnisordner. `Ergebnis speichern` veröffentlicht dieselben bereits gerenderten Artefakte ohne weiteren Provideraufruf; `Verwerfen`, eine neue Bildauswahl oder eine geänderte Ausgabeart entfernt die Vorschau ohne Veröffentlichung.
 
 ## 4. Eingaben
 
@@ -99,7 +109,7 @@ Jede Unsicherheit besitzt ID, Art (`text`, `classification`, `structure`, `relat
 
 ## 7. Ausgabevertrag und Fehler
 
-Jeder erfolgreiche Lauf erzeugt unter `--output-dir` ein neues Verzeichnis `run-<uuid4-hex>`. Namen von Ausgabedateien sind fest vorgegeben. Niemals vorhandene Ergebnisse ersetzen und nie Dateinamen aus Modelltext ableiten.
+Jeder erfolgreiche CLI-Lauf und jede ausdrücklich gespeicherte Frontend-Vorschau erzeugt unter dem gewählten Ausgabeverzeichnis ein neues Verzeichnis `run-<uuid4-hex>`. Eine reine Frontend-Vorschau erzeugt dort nichts. Namen von Ausgabedateien sind fest vorgegeben. Niemals vorhandene Ergebnisse ersetzen und nie Dateinamen aus Modelltext ableiten.
 
 Artefakte zunächst in einem temporären Geschwisterverzeichnis vollständig schreiben und erst dann per Umbenennung veröffentlichen. Bei einem Fehler erscheint kein vollständiges Ergebnisverzeichnis; alte Ergebnisse bleiben erhalten. Temporäre Reste nach einem Prozessabbruch sind möglich und klar als temporär benannt. UTF-8, LF und ein abschließender Zeilenumbruch gelten für alle Textdateien.
 
@@ -120,7 +130,7 @@ Keine halbfertigen Fachartefakte bei technischem Fehlschlag. Unsicherheit ist ei
 
 **NFR-02 — Reproduzierbarkeit:** Gleiche validierte IR erzeugt byteidentische Markdown-/Mermaid-Dateien. Neue Modellaufrufe dürfen abweichen. Modellkennung, Provider, Prompt-Version und Schema-Version zur Nachvollziehbarkeit speichern.
 
-**NFR-03 — Datenschutz:** Keine Telemetrie, keine externen Requests ohne Freigabe, keine sensiblen Inhalte in Logs, keine eingebetteten Metadaten übertragen. Eigene Dateien in synchronisierten Verzeichnissen unterliegen weiterhin der vom Nutzer eingerichteten Synchronisierung. Die Anwendung steuert keine Speicher- oder Trainingsrichtlinien des gewählten Anbieters; diese sind bei dessen Einrichtung zu dokumentieren.
+**NFR-03 — Datenschutz:** Keine Telemetrie, keine externen Requests ohne Freigabe, keine sensiblen Inhalte in Logs, keine eingebetteten Metadaten übertragen. Das Frontend ist nur über Loopback erreichbar und aktiviert keine öffentlichen Freigabelinks. Eigene Dateien in synchronisierten Verzeichnissen unterliegen weiterhin der vom Nutzer eingerichteten Synchronisierung. Die Anwendung steuert keine Speicher- oder Trainingsrichtlinien des gewählten Anbieters; diese sind bei dessen Einrichtung zu dokumentieren.
 
 **NFR-04 — Begrenzte Ressourcen:** Ein Provideraufruf pro Analyse als Normalfall. Höchstens drei Gesamtversuche bei transienten Fehlern, maximal 60 Sekunden je Versuch und 200 Sekunden Gesamtdauer einschließlich Wartezeit. Providerantworten vor Parsing auf 2 MiB begrenzen. Keine parallele Verarbeitung, automatischen Reparaturaufrufe oder versteckten Modell-Fallbacks.
 
@@ -147,9 +157,11 @@ Die Abnahme kombiniert automatisierte Softwaretests mit einem kleinen Live-Smoke
 | AC-11 | Leeres, unleserliches oder strukturarmes Bild liefert ein überprüfbares Ergebnis mit Warnung; keine erfundenen Knoten/Kanten und kein vorgetäuschtes Diagramm. |
 | AC-12 | Lint-, Format-, Typ-, Test- und Paketprüfungen sind in CI erfolgreich; die normale Testsuite benötigt weder Netz noch API-Schlüssel. |
 | AC-13 | Vor v0.1-Abnahme mindestens ein freigegebenes Bild pro Kern-Dokumenttyp sowie ein schwieriges Beispiel mit echtem Provider prüfen. Transkription, Zahlen, Klassifikation, Beziehungen und Unsicherheiten mit dem Original vergleichen; beobachtete Fehler und Modell-/Prompt-Version dokumentieren. |
+| AC-14 | Das lokale Frontend lässt Bild-Upload und Zwischenablage, alle sechs Ausgabearten sowie die ausdrückliche Remote-Freigabe erkennen. Ein Start bindet nur an `127.0.0.1` und erzeugt keinen öffentlichen Freigabelink. |
+| AC-15 | Eine Analyse erzeugt eine Vorschau ohne Ergebnisordner. Erst `Ergebnis speichern` veröffentlicht die erwarteten Artefakte und verursacht keinen zweiten Provideraufruf; Verwerfen und Eingabeänderungen invalidieren die Vorschau. |
 
 ## 10. Out of Scope und spätere Optionen
 
-Nicht Teil von v0.1: Folder Watcher, Batch-Verarbeitung, mehrseitige Dokumente/PDF, Kameraaufnahme, OCR-Trainingspipeline, Handschrifterkennungstraining, GUI/Web-App, Datenbank, Benutzerverwaltung, Cloud-Deployment, Power Automate, Agenten-Orchestrierung, Diagrammeditor, automatische Aktionen aus erkannten Notizen, SVG/PNG/PDF-Export und Volltextsuche.
+Nicht Teil des aktuellen Umfangs: Folder Watcher, Batch-Verarbeitung, mehrseitige Dokumente/PDF, Kameraaufnahme, OCR-Trainingspipeline, Handschrifterkennungstraining, native Desktop-App, öffentliche oder mehrbenutzerfähige Web-App, direkte OneNote-Anbindung, Datenbank, Benutzerverwaltung, Cloud-Deployment, Power Automate, Agenten-Orchestrierung, Diagrammeditor, automatische Aktionen aus erkannten Notizen, SVG/PNG/PDF-Export und Volltextsuche.
 
 Später denkbar: lokaler Vision-Adapter, Batch-/Watcher-Adapter, manuell korrigierbare IR, zusätzliche Renderer und ein versionierter Eval-Datensatz. Diese Optionen begründen keine vorsorgliche Infrastruktur im MVP.

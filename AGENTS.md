@@ -4,7 +4,7 @@ Diese Regeln gelten für das gesamte Repository und für menschliche wie KI-gest
 
 ## 1. Ziel und verbindlicher Kontext
 
-Notes2StructureAI ist eine lokal ausgeführte Python-Anwendung, die handschriftliche Notizen und Skizzen aus PNG/JPG in wortnahe Transkription, strukturierte Notizen, einen Dokumenttyp, ein validiertes JSON-Zwischenformat und gegebenenfalls Mermaid-Diagramme überführt.
+Notes2StructureAI ist eine lokal ausgeführte Python-Anwendung mit CLI und schlankem Browser-Frontend, die handschriftliche Notizen und Skizzen aus PNG/JPG in wortnahe Transkription, strukturierte Notizen, einen Dokumenttyp, ein validiertes JSON-Zwischenformat und gegebenenfalls Mermaid-Diagramme überführt.
 
 Vor Änderungen lesen:
 
@@ -16,8 +16,9 @@ Die Spezifikation ist maßgeblich für das Produktverhalten, die Architektur fü
 ## 2. Umfang und Einfachheit
 
 - v0.1: eine Bilddatei je CLI-Aufruf, synchrone Verarbeitung, lokale Dateien als Persistenz.
-- Keine GUI, Datenbank, Cloud-Bereitstellung, Power-Automate-Anbindung, Hintergrunddienste, Folder Watcher oder Multi-Agent-Architektur.
+- Keine öffentlich erreichbare Webanwendung, Datenbank, Cloud-Bereitstellung, Power-Automate-Anbindung, Hintergrunddienste, Folder Watcher oder Multi-Agent-Architektur. Das Showcase-Frontend bindet ausschließlich an die lokale Loopback-Schnittstelle.
 - Ein schlanker Provider-Vertrag, ein echter Vision-Adapter und ein Test-Fake reichen. Keine Plugin-Registry, generischen Repository-Schichten, Dependency-Injection-Frameworks oder vorsorglichen Event-Busse.
+- CLI und Frontend verwenden denselben Anwendungsdienst. Das Frontend hält eine Vorschau nur im Arbeitsspeicher und veröffentlicht Artefakte erst nach einer ausdrücklichen Speicheraktion; öffentliches Sharing und Framework-Telemetrie bleiben deaktiviert.
 - Funktionen und Module nach fachlicher Verantwortung schneiden. Kleine, nachvollziehbare Funktionen bevorzugen, aber keine willkürlichen Zeilenlimits erzwingen.
 - Abhängigkeiten nur für einen konkreten Bedarf hinzufügen und im Review begründen. Standardbibliothek verwenden, wenn sie die Aufgabe klar löst.
 - Lokale Ausführung ist keine Zusage vollständig lokaler Inferenz. Netzbasierte Vision-Verarbeitung muss konfiguriert und explizit freigegeben sein; niemals automatisch zu einem externen Dienst wechseln.

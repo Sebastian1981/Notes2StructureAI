@@ -26,6 +26,10 @@ verwendet; abhängig von Kontoeinstellungen und rechtlichen Anforderungen könne
 Missbrauchsprotokolle zeitlich begrenzt aufbewahrt werden. Die aktuelle OpenAI-Dokumentation
 bleibt dafür maßgeblich.
 
+Im lokalen Frontend entspricht die Checkbox zur Bildübertragung dem CLI-Schalter. Sie ist beim
+Start deaktiviert und muss vor der Analyse bewusst gesetzt werden. Die Vorschau oder das
+Verwerfen ändert nichts daran, dass der Provideraufruf zu diesem Zeitpunkt bereits erfolgt ist.
+
 ## Secret und Konfiguration
 
 Erforderlich sind `N2S_PROVIDER=openai`, `N2S_MODEL=gpt-5.6-terra` und `N2S_API_KEY`.

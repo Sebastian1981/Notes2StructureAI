@@ -11,8 +11,8 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
 from notes2structure import __version__
-from notes2structure.artifacts import render_artifacts
-from notes2structure.config import AppConfig, load_configuration
+from notes2structure.application import build_provider, create_preview, save_preview
+from notes2structure.config import load_configuration
 from notes2structure.errors import (
     AnalysisValidationError,
     ConfigurationError,
@@ -22,10 +22,7 @@ from notes2structure.errors import (
     ProviderError,
     RenderingError,
 )
-from notes2structure.output_writer import publish_artifacts
-from notes2structure.pipeline import analyze_image
 from notes2structure.providers.base import AnalysisOptions, VisionProvider
-from notes2structure.providers.openai import OpenAIVisionProvider
 from notes2structure.schemas import KnownType, Mode
 
 
@@ -82,14 +79,16 @@ def main(
             message = "Im Modus transcribe muss --document-type auf auto stehen."
             raise InputError(message)
         if provider is None:
-            provider = _build_provider(load_configuration(args.env_file))
-        if provider.is_remote and not args.allow_remote:
-            message = "Für einen externen Provider ist --allow-remote erforderlich."
-            raise ConfigurationError(message)
+            provider = build_provider(load_configuration(args.env_file))
         options = AnalysisOptions(mode=mode, requested_type=requested_type)
-        document = analyze_image(args.image, options, provider)
-        artifacts = render_artifacts(document)
-        result_dir = publish_artifacts(args.output_dir, document.analysis.run_id, artifacts)
+        preview = create_preview(
+            args.image,
+            options,
+            provider,
+            allow_remote=args.allow_remote,
+        )
+        document = preview.document
+        result_dir = save_preview(preview, args.output_dir)
         if document.review_required:
             error_stream.write("Warnung: Das Ergebnis erfordert eine menschliche Prüfung.\n")
         output_stream.write(f"{result_dir}\n")
@@ -104,13 +103,6 @@ def main(
 
 def _parse_requested_type(value: str) -> KnownType | None:
     return None if value == "auto" else KnownType(value)
-
-
-def _build_provider(config: AppConfig) -> VisionProvider:
-    return OpenAIVisionProvider(
-        api_key=config.api_key.get_secret_value(),
-        model=config.model,
-    )
 
 
 def _exit_code(error: Notes2StructureError) -> int:

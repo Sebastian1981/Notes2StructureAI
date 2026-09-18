@@ -10,6 +10,7 @@ readme = "README.md"
 requires-python = "==3.12.*"
 license = { file = "LICENSE" }
 dependencies = [
+  "gradio==6.20.0",
   "openai==3.14.1",
   "pillow==12.1.0",
   "pydantic==2.12.5",
@@ -17,6 +18,7 @@ dependencies = [
 
 [project.scripts]
 notes2structure = "notes2structure.cli:main"
+notes2structure-ui = "notes2structure.frontend:main"
 
 [dependency-groups]
 dev = [

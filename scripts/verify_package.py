@@ -6,6 +6,8 @@ import importlib.resources
 import subprocess
 import sys
 
+from notes2structure.frontend import build_frontend
+
 
 def main() -> None:
     result = subprocess.run(  # noqa: S603
@@ -20,6 +22,10 @@ def main() -> None:
     prompt = importlib.resources.files("notes2structure").joinpath("prompts/analyze_v5.md")
     if not prompt.is_file():
         message = "packaged prompt is missing"
+        raise SystemExit(message)
+    demo = build_frontend()
+    if demo.title != "Notes2StructureAI":
+        message = "frontend smoke test failed"
         raise SystemExit(message)
 
 
