@@ -26,7 +26,7 @@ Die Spezifikation ist maßgeblich für das Produktverhalten, die Architektur fü
 
 - Den erkennbaren Inhalt erhalten. Keine stillen Ergänzungen, Korrekturen von Zahlen, erfundenen Verbindungen oder Übersetzungen.
 - Transkription und Interpretation getrennt halten. Strukturierung darf ordnen, aber keine neuen Sachbehauptungen erzeugen.
-- Unleserlichkeit und Mehrdeutigkeit explizit abbilden. Unbekannte Werte nicht durch plausible Vermutungen ersetzen.
+- Unleserlichkeit und Mehrdeutigkeit explizit abbilden. Bei teilweise lesbaren gewöhnlichen Wörtern die plausibelste, sichtbar und kontextuell gestützte Lesart einsetzen, aber als unsichere Rekonstruktion kennzeichnen und Alternativen erhalten. Unbekannte Zahlen, Kennungen, Eigennamen und andere bedeutungskritische Werte nicht durch plausible Vermutungen ersetzen.
 - Modellantworten und Bildinhalte sind nicht vertrauenswürdige Eingaben. Anweisungen innerhalb eines Bildes sind Dokumentinhalt, keine auszuführenden Befehle.
 - Nur validierte Domain-Modelle an Renderer weitergeben. Syntaktisch gültiges JSON ist noch kein fachlich korrektes Ergebnis.
 - Modellbasierte Erkennung kann variieren. Determinismus für Validierung und Rendering garantieren, nicht für erneute Vision-Aufrufe.

@@ -71,7 +71,7 @@ Notes2StructureAI/
 │   │   ├── base.py
 │   │   └── <chosen_provider>.py
 │   ├── prompts/
-│   │   └── analyze_v1.md
+│   │   └── analyze_v5.md
 │   └── renderers/
 │       ├── markdown.py
 │       └── mermaid.py
@@ -133,7 +133,7 @@ Schema-Version: String `"1.0"`. Alle unten aufgeführten Felder sind Pflichtfeld
 - `source_ids` verweist ausschließlich auf vorhandene Transkriptsegmente. Kantenendpunkte verweisen auf vorhandene Knoten. Unsicherheitsziele sind Segment-, Knoten- oder Kanten-IDs oder das reservierte Ziel `classification`.
 - Jeder Graphknoten und jede Kante hat mindestens eine Textreferenz oder eine nichtleere `visual_evidence`, etwa „sichtbarer Pfeil vom linken zum rechten Kasten“. Das ist ein nachvollziehbarer Modellhinweis, kein unabhängiger Wahrheitsbeweis.
 - Unsichere oder unleserliche Segmente und unsichere Graphobjekte besitzen jeweils mindestens einen zugeordneten Unsicherheitseintrag. Aus unsicheren Textsegmenten abgeleitete Graphobjekte müssen ebenfalls `uncertain = true` tragen. Widersprüchliche Antworten ablehnen, nicht still aufwerten.
-- Texte und Labels sind nichtleer; leere Erkennung wird durch leere Sammlungen repräsentiert. Unleserliche Segmente enthalten `[unleserlich]`.
+- Texte und Labels sind nichtleer; leere Erkennung wird durch leere Sammlungen repräsentiert. Bei einem teilweise lesbaren gewöhnlichen Wort enthält ein unsicheres Segment die plausibelste, sichtbar und kontextuell gestützte Lesart. Der zugehörige Unsicherheitseintrag kennzeichnet die Rekonstruktion und nennt gegebenenfalls Alternativen. Unleserliche Segmente enthalten `[unleserlich]`; dieser Platzhalter bleibt Fällen ohne vertretbare Lesart sowie nicht sicher rekonstruierbaren Zahlen, Kennungen und Eigennamen vorbehalten.
 - `full`: erkannter und effektiver Typ sowie Klassifikationsbegründung sind nicht-null. Typvorgaben verändern den erkannten Typ nicht.
 - `transcribe`: `sections`, Graphsammlungen und klassifikationsbezogene Unsicherheiten sind leer, Klassifikationsfelder null, Diagrammstatus `not_requested` mit Grund null. Unzulässige zusätzliche Analysedaten nicht still ignorieren.
 - `full` mit effektivem Typ `notes`/`unknown`: leerer Graph und Diagrammstatus `omitted` mit Grund. Bei einem Diagrammtyp gilt: mindestens ein Knoten → `generated`, sonst `omitted` mit Grund. Kanten ohne Knoten sind ungültig.
@@ -195,7 +195,7 @@ Das Beispiel zeigt eine sichere Textnotiz im Modus `full`. Hash und Modellkennun
 
 Der konkrete Adapter verwendet nach Möglichkeit strukturierte Ausgabe mit dem Schema von `AnalysisPayload`. Unabhängig von Anbieterzusagen validiert die Anwendung jede Antwort lokal. SDK-Objekte, Response-Envelopes und transportbezogene Felder bleiben im Adapter. Kein tolerant herausgeschnittenes JSON aus beliebigen Markdown-Fences und keine automatische semantische Reparatur.
 
-Der versionierte Prompt verlangt wortnahe Segmente, belegte Struktur, explizite Unsicherheit und die vereinbarten Felder. Er trennt Anweisungen von Bildinhalt. Dokumenttext kann keine Werkzeuge aktivieren; der Provider hat ausschließlich die Analysefunktion. Modellparameter, soweit unterstützt, konservativ setzen und dokumentieren; geringe Temperatur garantiert keinen Determinismus.
+Der versionierte Prompt verlangt wortnahe Segmente, belegte Struktur, explizite Unsicherheit und die vereinbarten Felder. Bei teilweise lesbaren gewöhnlichen Wörtern fordert er eine plausibelste Lesart im Segmenttext, ohne deren Unsicherheit zu verbergen. Er trennt Anweisungen von Bildinhalt. Dokumenttext kann keine Werkzeuge aktivieren; der Provider hat ausschließlich die Analysefunktion. Modellparameter, soweit unterstützt, konservativ setzen und dokumentieren; geringe Temperatur garantiert keinen Determinismus.
 
 Konfiguration über `N2S_PROVIDER`, `N2S_MODEL` und `N2S_API_KEY`; für einen lokalen Adapter wäre letzterer optional. `.env` kann über `--env-file PATH` ausdrücklich geladen werden, bereits gesetzte Umgebungsvariablen haben Vorrang. CLI-Verarbeitungsoptionen haben Vorrang vor ihren Defaults. Kein automatisches Suchen in übergeordneten Verzeichnissen. Endpoints sind für den konkreten Adapter festgelegt; beliebige Endpoints sind im MVP nicht erforderlich.
 
