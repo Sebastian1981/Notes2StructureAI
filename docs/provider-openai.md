@@ -6,7 +6,8 @@ Notes2StructureAI verwendet in v0.1 den OpenAI-Provider mit dem Modell
 `gpt-5.6-terra` über die Responses API. Die Python-Abhängigkeit ist auf `openai==3.14.1`
 festgelegt. Das Modell akzeptiert Bildeingaben und unterstützt strukturierte Ausgaben. Die
 Anwendung übermittelt Bilder als Base64-Daten-URL mit Detailstufe `original` und lässt die
-Antwort direkt gegen das strenge Pydantic-Modell `AnalysisPayload` erzeugen.
+Antwort direkt gegen das jeweils strenge Pydantic-Modell `AnalysisPayload` oder `CleanupPayload`
+erzeugen.
 
 Offizielle Referenzen:
 
@@ -18,8 +19,8 @@ Offizielle Referenzen:
 ## Übertragung und Datenschutzgrenze
 
 Ohne CLI-Schalter `--allow-remote` findet kein Provideraufruf statt. Übertragen werden nur
-das lokal dekodierte, EXIF-bereinigte und als RGB-PNG neu kodierte Bild, der versionierte
-Analyse-Prompt und der Vollanalysemodus ohne Typvorgabe. Lokale Dateipfade und der ursprüngliche
+das lokal dekodierte, EXIF-bereinigte und als RGB-PNG neu kodierte Bild sowie der versionierte
+Analyse- beziehungsweise Cleanup-Prompt. Lokale Dateipfade und der ursprüngliche
 Dateiname sind nicht Teil des Requests. `store=False` verhindert das Speichern der Response
 als API-Anwendungszustand. Laut OpenAI werden API-Daten standardmäßig nicht zum Training
 verwendet; abhängig von Kontoeinstellungen und rechtlichen Anforderungen können
@@ -27,11 +28,10 @@ Missbrauchsprotokolle zeitlich begrenzt aufbewahrt werden. Die aktuelle OpenAI-D
 bleibt dafür maßgeblich.
 
 Im lokalen Frontend entspricht die Checkbox zur Übertragungsfreigabe dem CLI-Schalter. Sie ist
-beim Start deaktiviert und muss vor der Analyse bewusst gesetzt werden. Optionale Schaltflächen
-für eine andere Diagramminterpretation lösen jeweils einen zusätzlichen textbasierten Request
-aus. Dabei werden nur die benötigten Teile der validierten Analyse und nicht erneut das Bild
-übertragen. Die Vorschau oder das Verwerfen ändert nichts daran, dass bereits ausgeführte
-Provideraufrufe zu diesem Zeitpunkt erfolgt sind.
+beim Start deaktiviert und muss vor der Optimierung bewusst gesetzt werden. Eine Optimierung
+verwendet genau einen Bildrequest; Vorschau und Speichern lösen keine weiteren Requests aus.
+Die Vorschau oder das Verwerfen ändert nichts daran, dass der bereits ausgeführte Provideraufruf
+zu diesem Zeitpunkt erfolgt ist.
 
 ## Secret und Konfiguration
 
@@ -43,9 +43,9 @@ Schlüssel noch Providerantworten wieder.
 
 ## Ressourcen- und Fehlergrenzen
 
-- maximal ein Request für die reguläre Vollanalyse; nur eine ausdrücklich gewählte alternative
-  Diagramminterpretation löst einen weiteren Request aus; je Request höchstens drei Gesamtversuche
-  bei Verbindung, Timeout, HTTP 429 oder HTTP 5xx;
+- maximal ein Request je Frontend-Optimierung beziehungsweise regulärer CLI-Analyse; Vorschau und
+  Speichern lösen keinen weiteren Request aus; je Request höchstens drei Gesamtversuche bei
+  Verbindung, Timeout, HTTP 429 oder HTTP 5xx;
 - SDK-eigene Retries deaktiviert, 60 Sekunden je Versuch und 200 Sekunden Gesamtfrist;
 - Backoff von 1 und 2 Sekunden mit kleinem Jitter; `Retry-After` nur innerhalb der Gesamtfrist;
 - höchstens 2 MiB Antwortdaten vor dem Parsing;

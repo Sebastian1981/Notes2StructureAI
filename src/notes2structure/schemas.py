@@ -17,10 +17,13 @@ from pydantic import (
 )
 
 SCHEMA_VERSION = "1.0"
+NORMALIZED_PAGE_MAX = 1_000
 TRANSCRIPT_ID_PATTERN = r"^t[1-9][0-9]*$"
 NODE_ID_PATTERN = r"^n[1-9][0-9]*$"
 EDGE_ID_PATTERN = r"^e[1-9][0-9]*$"
 UNCERTAINTY_ID_PATTERN = r"^u[1-9][0-9]*$"
+LAYOUT_TEXT_ID_PATTERN = r"^l[1-9][0-9]*$"
+LAYOUT_SHAPE_ID_PATTERN = r"^s[1-9][0-9]*$"
 
 ShortText = Annotated[str, StringConstraints(min_length=1, max_length=500)]
 LongText = Annotated[str, StringConstraints(min_length=1, max_length=2_000)]
@@ -29,6 +32,8 @@ TranscriptId = Annotated[str, StringConstraints(pattern=TRANSCRIPT_ID_PATTERN)]
 NodeId = Annotated[str, StringConstraints(pattern=NODE_ID_PATTERN)]
 EdgeId = Annotated[str, StringConstraints(pattern=EDGE_ID_PATTERN)]
 UncertaintyId = Annotated[str, StringConstraints(pattern=UNCERTAINTY_ID_PATTERN)]
+LayoutTextId = Annotated[str, StringConstraints(pattern=LAYOUT_TEXT_ID_PATTERN)]
+LayoutShapeId = Annotated[str, StringConstraints(pattern=LAYOUT_SHAPE_ID_PATTERN)]
 
 
 class StrictModel(BaseModel):
@@ -88,6 +93,26 @@ class DiagramStatus(StrEnum):
     GENERATED = "generated"
     OMITTED = "omitted"
     NOT_REQUESTED = "not_requested"
+
+
+class TextRole(StrEnum):
+    HEADING = "heading"
+    BODY = "body"
+    LABEL = "label"
+    NOTE = "note"
+
+
+class TextAlignment(StrEnum):
+    LEFT = "left"
+    CENTER = "center"
+
+
+class ShapeKind(StrEnum):
+    RECTANGLE = "rectangle"
+    ROUNDED_RECTANGLE = "rounded_rectangle"
+    ELLIPSE = "ellipse"
+    LINE = "line"
+    ARROW = "arrow"
 
 
 class Source(StrictModel):
@@ -230,6 +255,124 @@ class ReinterpretationPayload(StrictModel):
     graph: Graph
     uncertainties: Annotated[list[Uncertainty], Field(max_length=1_000)]
     warnings: Annotated[list[LongText], Field(max_length=100)]
+
+
+NormalizedCoordinate = Annotated[int, Field(ge=0, le=1_000)]
+CanvasDimension = Annotated[int, Field(ge=250, le=2_000)]
+
+
+class LayoutText(StrictModel):
+    """One cleaned text block positioned on a normalized page."""
+
+    id: LayoutTextId
+    text: ContentText
+    role: TextRole
+    alignment: TextAlignment
+    x: NormalizedCoordinate
+    y: NormalizedCoordinate
+    width: Annotated[int, Field(gt=0, le=1_000)]
+    height: Annotated[int, Field(gt=0, le=1_000)]
+    source_ids: Annotated[list[TranscriptId], Field(min_length=1, max_length=1_000)]
+    uncertain: bool
+
+    @model_validator(mode="after")
+    def require_bounds(self) -> Self:
+        if self.x + self.width > NORMALIZED_PAGE_MAX or self.y + self.height > NORMALIZED_PAGE_MAX:
+            msg = "layout text bounds must stay within the normalized page"
+            raise ValueError(msg)
+        return self
+
+
+class LayoutShape(StrictModel):
+    """One cleaned geometric mark using normalized endpoint coordinates."""
+
+    id: LayoutShapeId
+    kind: ShapeKind
+    x1: NormalizedCoordinate
+    y1: NormalizedCoordinate
+    x2: NormalizedCoordinate
+    y2: NormalizedCoordinate
+    source_ids: Annotated[list[TranscriptId], Field(max_length=1_000)]
+    visual_evidence: LongText | None
+    uncertain: bool
+
+    @model_validator(mode="after")
+    def require_geometry_and_evidence(self) -> Self:
+        if self.x1 == self.x2 and self.y1 == self.y2:
+            msg = "layout shapes must have a visible extent"
+            raise ValueError(msg)
+        if self.kind in {
+            ShapeKind.RECTANGLE,
+            ShapeKind.ROUNDED_RECTANGLE,
+            ShapeKind.ELLIPSE,
+        } and (self.x2 <= self.x1 or self.y2 <= self.y1):
+            msg = "area shapes require top-left and bottom-right coordinates"
+            raise ValueError(msg)
+        if not self.source_ids and self.visual_evidence is None:
+            msg = "a layout shape needs a transcript reference or visual evidence"
+            raise ValueError(msg)
+        return self
+
+
+class CleanLayout(StrictModel):
+    """Provider-described page layout; all coordinates are normalized to 0..1000."""
+
+    canvas_width: CanvasDimension
+    canvas_height: CanvasDimension
+    texts: Annotated[list[LayoutText], Field(max_length=1_000)]
+    shapes: Annotated[list[LayoutShape], Field(max_length=1_000)]
+
+
+class CleanupPayload(StrictModel):
+    """Untrusted provider result for a faithful visual cleanup."""
+
+    transcript: Annotated[list[TranscriptSegment], Field(max_length=1_000)]
+    layout: CleanLayout
+    uncertainties: Annotated[list[Uncertainty], Field(max_length=1_000)]
+    warnings: Annotated[list[LongText], Field(max_length=100)]
+
+    @model_validator(mode="after")
+    def validate_cleanup(self) -> Self:
+        _validate_cleanup_integrity(
+            self.transcript,
+            self.layout,
+            self.uncertainties,
+        )
+        return self
+
+
+class CleanDocumentIR(StrictModel):
+    """Trusted intermediate representation for the cleaned visual note."""
+
+    schema_version: Literal["clean-note-1.0"]
+    source: Source
+    analysis: AnalysisMetadata
+    transcript: Annotated[list[TranscriptSegment], Field(max_length=1_000)]
+    layout: CleanLayout
+    uncertainties: Annotated[list[Uncertainty], Field(max_length=1_000)]
+    warnings: Annotated[list[LongText], Field(max_length=100)]
+    review_required: bool
+
+    @model_validator(mode="after")
+    def validate_document(self) -> Self:
+        _validate_cleanup_integrity(
+            self.transcript,
+            self.layout,
+            self.uncertainties,
+        )
+        expected_review = bool(self.uncertainties) or not any(
+            segment.status is SegmentStatus.CLEAR for segment in self.transcript
+        )
+        expected_review = expected_review or any(
+            segment.status is not SegmentStatus.CLEAR for segment in self.transcript
+        )
+        expected_review = expected_review or any(
+            item.uncertain for item in [*self.layout.texts, *self.layout.shapes]
+        )
+        if self.review_required is not expected_review:
+            msg = f"review_required must be {expected_review} for this cleaned document"
+            raise ValueError(msg)
+        return self
 
 
 class DocumentIR(StrictModel):
@@ -473,3 +616,51 @@ def _validate_mindmap(graph: Graph) -> None:
     if len(visited) != len(graph.nodes):
         msg = "a mindmap must be connected"
         raise ValueError(msg)
+
+
+def _validate_cleanup_integrity(
+    transcript: list[TranscriptSegment],
+    layout: CleanLayout,
+    uncertainties: list[Uncertainty],
+) -> None:
+    transcript_ids = {segment.id for segment in transcript}
+    text_ids = {item.id for item in layout.texts}
+    shape_ids = {item.id for item in layout.shapes}
+    _require_unique_ids([segment.id for segment in transcript], "transcript")
+    _require_unique_ids([item.id for item in layout.texts], "layout texts")
+    _require_unique_ids([item.id for item in layout.shapes], "layout shapes")
+    _require_unique_ids([item.id for item in uncertainties], "uncertainties")
+
+    for item in [*layout.texts, *layout.shapes]:
+        _require_transcript_references(item.source_ids, transcript_ids)
+
+    valid_targets = transcript_ids | text_ids | shape_ids
+    targets_by_id = {target for item in uncertainties for target in item.target_ids}
+    for uncertainty in uncertainties:
+        invalid_targets = sorted(set(uncertainty.target_ids) - valid_targets)
+        if invalid_targets:
+            msg = f"uncertainty {uncertainty.id} has invalid targets: {', '.join(invalid_targets)}"
+            raise ValueError(msg)
+        if uncertainty.kind is UncertaintyKind.CLASSIFICATION:
+            msg = "classification uncertainty is not used for visual cleanup"
+            raise ValueError(msg)
+
+    required_uncertainty = {
+        segment.id for segment in transcript if segment.status is not SegmentStatus.CLEAR
+    }
+    required_uncertainty.update(item.id for item in layout.texts if item.uncertain)
+    required_uncertainty.update(item.id for item in layout.shapes if item.uncertain)
+    missing_uncertainty = sorted(required_uncertainty - targets_by_id)
+    if missing_uncertainty:
+        msg = "uncertain cleanup objects need uncertainty entries: " + ", ".join(
+            missing_uncertainty
+        )
+        raise ValueError(msg)
+
+    uncertain_transcript_ids = {
+        segment.id for segment in transcript if segment.status is not SegmentStatus.CLEAR
+    }
+    for item in [*layout.texts, *layout.shapes]:
+        if uncertain_transcript_ids.intersection(item.source_ids) and not item.uncertain:
+            msg = f"layout object {item.id} derived from uncertain text must be uncertain"
+            raise ValueError(msg)

@@ -17,6 +17,7 @@ from pydantic import ValidationError
 from notes2structure.errors import AnalysisValidationError, InputError, ProviderError
 from notes2structure.schemas import (
     AnalysisPayload,
+    CleanupPayload,
     DocumentIR,
     KnownType,
     Mode,
@@ -31,6 +32,7 @@ if TYPE_CHECKING:
 
 PROMPT_VERSION = "analyze-v5"
 REINTERPRET_PROMPT_VERSION = "reinterpret-v1"
+CLEANUP_PROMPT_VERSION = "cleanup-v1"
 MAX_ATTEMPTS = 3
 ATTEMPT_TIMEOUT_SECONDS = 60.0
 TOTAL_TIMEOUT_SECONDS = 200.0
@@ -42,7 +44,9 @@ SERVER_ERROR_STATUS = 500
 UNAUTHORIZED_STATUS = 401
 FORBIDDEN_STATUS = 403
 
-StructuredPayload = TypeVar("StructuredPayload", AnalysisPayload, ReinterpretationPayload)
+StructuredPayload = TypeVar(
+    "StructuredPayload", AnalysisPayload, ReinterpretationPayload, CleanupPayload
+)
 
 
 class _ParsedResponse(Protocol):
@@ -82,6 +86,7 @@ class OpenAIVisionProvider:
     name = "openai"
     prompt_version = PROMPT_VERSION
     reinterpret_prompt_version = REINTERPRET_PROMPT_VERSION
+    cleanup_prompt_version = CLEANUP_PROMPT_VERSION
     is_remote = True
 
     def __init__(
@@ -109,6 +114,9 @@ class OpenAIVisionProvider:
             .joinpath("reinterpret_v1.md")
             .read_text(encoding="utf-8")
         )
+        self._cleanup_instructions = (
+            files("notes2structure.prompts").joinpath("cleanup_v1.md").read_text(encoding="utf-8")
+        )
 
     def analyze(self, image: NormalizedImage, options: AnalysisOptions) -> AnalysisPayload:
         _validate_provider_image_limits(image)
@@ -126,6 +134,15 @@ class OpenAIVisionProvider:
             _build_reinterpret_input(document, requested_type),
             response_type=ReinterpretationPayload,
             instructions=self._reinterpret_instructions,
+        )
+
+    def optimize(self, image: NormalizedImage) -> CleanupPayload:
+        """Extract faithful content and spatial layout for a polished local rendering."""
+        _validate_provider_image_limits(image)
+        return self._request(
+            _build_cleanup_input(image),
+            response_type=CleanupPayload,
+            instructions=self._cleanup_instructions,
         )
 
     def _request(
@@ -228,6 +245,29 @@ def _build_input(image: NormalizedImage, options: AnalysisOptions) -> list[dict[
             "role": "user",
             "content": [
                 {"type": "input_text", "text": task},
+                {
+                    "type": "input_image",
+                    "image_url": f"data:{image.media_type};base64,{encoded}",
+                    "detail": "original",
+                },
+            ],
+        }
+    ]
+
+
+def _build_cleanup_input(image: NormalizedImage) -> list[dict[str, object]]:
+    encoded = base64.b64encode(image.content).decode("ascii")
+    return [
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "input_text",
+                    "text": (
+                        "Create a faithful cleaned layout of this handwritten page. Preserve "
+                        "content, language, grouping, relative placement, boxes, lines, and arrows."
+                    ),
+                },
                 {
                     "type": "input_image",
                     "image_url": f"data:{image.media_type};base64,{encoded}",

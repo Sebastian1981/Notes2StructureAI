@@ -1,4 +1,4 @@
-# Notes2StructureAI — Architektur v0.1
+# Notes2StructureAI — Architektur v0.2
 
 Status: Zielarchitektur des MVP mit lokalem Showcase-Frontend. Produktverhalten und Abnahme stehen in [spec.md](spec.md), Arbeitsregeln in [AGENTS.md](../AGENTS.md). Die Architektur verwendet eine synchrone Pipeline mit Pydantic-Modellen und lokalen Dateien. Es gibt weder einen autonomen Agenten noch einen öffentlich erreichbaren Dienst.
 
@@ -11,9 +11,9 @@ Status: Zielarchitektur des MVP mit lokalem Showcase-Frontend. Produktverhalten 
 | `argparse`, `logging`, `pathlib` aus der Standardbibliothek | Für die kleine CLI genügen vorhandene Werkzeuge |
 | Gradio mit lokaler Loopback-Bindung | Kleine Bild-, Zwischenablage- und Vorschauoberfläche ohne separates JavaScript-Projekt |
 | Pillow für Bildprüfung und Normalisierung | Formatprüfung, Orientierung, RGB und Metadatenentfernung an einer Stelle |
-| Ein Provider-Protocol und ein konkreter Adapter | Austauschbarkeit an der tatsächlich variablen Grenze |
-| Eine gemeinsame IR | Transkription, Notizen und Diagramm bleiben aufeinander beziehbar |
-| Reine Markdown-/Mermaid-Renderer | Reproduzierbare Ausgabe ohne weitere Modellkosten |
+| Schmale Analyse- und Cleanup-Provider-Verträge, ein konkreter Adapter | Austauschbarkeit an der tatsächlich variablen Grenze |
+| Getrennte, streng validierte Analyse- und Cleanup-IR | CLI-Analyse und visuelle Rekonstruktion bleiben fachlich klar getrennt |
+| Reine Markdown-, Mermaid- und SVG-Renderer | Reproduzierbare Ausgabe ohne weitere Modellkosten |
 | Mermaid-Flowcharts für alle Diagrammtypen | Kleine, gemeinsame Syntaxfläche mit sicherem Escaping |
 | Dateiverzeichnisse statt Datenbank | Ein Dokument pro Lauf benötigt keine Persistenzschicht |
 
@@ -23,31 +23,28 @@ Diese Festlegungen sind Projektentscheidungen, keine Behauptung, dass jede klein
 
 ```mermaid
 flowchart TD
-    CLI[CLI] --> APP[Anwendungsdienst]
-    UI[Lokales Frontend] --> APP
+    UI[Lokales Frontend] --> APP[Anwendungsdienst]
     APP --> LOAD[Bild laden und normalisieren]
-    LOAD --> PROVIDER[Vision-Provider]
-    PROVIDER --> VALIDATE[Analysevertrag validieren]
-    VALIDATE --> IR[IR vervollständigen und fachlich prüfen]
-    IR --> JSON[JSON serialisieren]
-    IR --> MD[Markdown rendern]
-    IR --> MMD[Mermaid rendern, falls geeignet]
-    JSON --> PREVIEW[Vorschau im Arbeitsspeicher]
-    MD --> PREVIEW
-    MMD --> PREVIEW
-    PREVIEW -->|CLI oder Speichern| WRITE[Artefakte vollständig lokal veröffentlichen]
+    LOAD --> PROVIDER[Vision-Provider: Cleanup]
+    PROVIDER --> VALIDATE[CleanupPayload validieren]
+    VALIDATE --> IR[CleanDocumentIR vervollständigen]
+    IR --> SVG[Sauberes SVG lokal rendern]
+    IR --> TEXT[Transkript und JSON rendern]
+    SVG --> PREVIEW[Vorschau im Arbeitsspeicher]
+    TEXT --> PREVIEW
+    PREVIEW -->|Speichern| WRITE[Artefakte vollständig lokal veröffentlichen]
     PREVIEW -->|Verwerfen| DROP[Ohne Veröffentlichung beenden]
-    PREVIEW -->|Optionale Neuinterpretation: nur validiertes JSON| PROVIDER
+    CLI[Kompatible CLI-Analyse] --> LEGACY[Bisherige Analysepipeline]
 ```
 
-1. CLI oder Frontend validieren Optionen, Konfiguration und Remote-Freigabe.
+1. Frontend validiert Konfiguration und Remote-Freigabe; die CLI behält ihren bisherigen Vertrag.
 2. Bildleser prüft die ursprüngliche Datei, bildet SHA-256 und normalisiert Bilddaten gemäß Spec. Dateiinhalte für Hash und Analyse stammen aus demselben gelesenen Snapshot.
-3. Provider erhält normalisierte Bildbytes, MIME-Typ und Analyseoptionen. Er liest keine Pfade und schreibt keine Dateien.
-4. Adapter überführt die Antwort in `AnalysisPayload`; anschließend prüft die Domain strukturelle und fachliche Invarianten.
-5. Pipeline ergänzt ausschließlich vertrauenswürdige Laufmetadaten, berechnet effektiven Typ, Diagrammstatus und Prüfstatus und erzeugt `DocumentIR`.
-6. Renderer erzeugen alle Inhalte im Speicher. Die CLI veröffentlicht sie unmittelbar; das Frontend zeigt sie zunächst nur als Vorschau und ruft den Writer erst nach der Speicheraktion auf.
+3. Cleanup-Provider erhält normalisierte Bildbytes und beschreibt Transkript, Textpositionen und sichtbare Formen. Er liest keine Pfade und schreibt keine Dateien.
+4. Adapter überführt die Antwort in `CleanupPayload`; anschließend prüft die Domain Koordinaten, Referenzen, Unsicherheiten und Ressourcenlimits.
+5. Cleanup-Pipeline ergänzt ausschließlich vertrauenswürdige Laufmetadaten und erzeugt `CleanDocumentIR`.
+6. Renderer erzeugen SVG, Transkript und JSON im Speicher. Das Frontend zeigt sie zunächst nur als Vorschau und ruft den Writer erst nach der Speicheraktion auf.
 
-Klassifikation, Transkription und Struktur werden im Modus `full` in einer Analyse angefordert. Kein separater Klassifikationsaufruf und kein zweiter LLM-Aufruf zum regulären Rendern. Nur die im Frontend ausdrücklich gewählte alternative Diagramminterpretation ist ein zusätzlicher textbasierter Aufruf. Sie erhält die validierten Inhalte der vorhandenen Analyse, niemals erneut das Bild, und darf fehlende Evidenz nicht ergänzen. Das strukturelle Extrahieren durch ein Modell bleibt probabilistisch; die nachfolgenden Verarbeitungsschritte sind deterministisch.
+Die Frontend-Optimierung benötigt genau einen Bildaufruf. Klassifikation und alternative Diagrammdeutungen sind dort nicht Teil des Workflows. Das räumliche Extrahieren durch ein Modell bleibt probabilistisch; Validierung und SVG-Rendering sind deterministisch. Die bestehende strukturierte Analysepipeline bleibt ausschließlich für den kompatiblen CLI-Vertrag erhalten.
 
 ## 3. Vorgesehene Repository-Struktur
 
@@ -70,6 +67,7 @@ Notes2StructureAI/
 │   ├── cli.py
 │   ├── frontend.py
 │   ├── config.py
+│   ├── cleanup.py
 │   ├── pipeline.py
 │   ├── schemas.py
 │   ├── errors.py
@@ -80,8 +78,10 @@ Notes2StructureAI/
 │   │   └── <chosen_provider>.py
 │   ├── prompts/
 │   │   ├── analyze_v5.md
-│   │   └── reinterpret_v1.md
+│   │   ├── reinterpret_v1.md
+│   │   └── cleanup_v1.md
 │   └── renderers/
+│       ├── clean_note.py
 │       ├── markdown.py
 │       ├── mermaid.py
 │       └── svg.py
@@ -94,6 +94,14 @@ Notes2StructureAI/
 Die Struktur ist eine Umsetzungsvorgabe, keine Liste bereits vorhandener Dateien. `<chosen_provider>.py` wird durch den tatsächlichen Adapternamen ersetzt. Ein Fake-Provider gehört nach `tests/`. Prompts als Paketressourcen ausliefern; Tests prüfen ihren Zugriff auch aus dem installierten Paket. Private Eingaben und Ergebnisse liegen standardmäßig außerhalb versionierter Fixtures.
 
 ## 4. Abhängigkeitsgrenzen
+
+Der primäre Frontend-Pfad verwendet zusätzlich einen schmalen `CleanupProvider`. Er liefert kein
+fertiges SVG, sondern ein `CleanupPayload` mit Transkript, normalisierten Textblöcken und
+geometrischen Formen. `cleanup.py` ergänzt vertrauenswürdige Quell- und Laufmetadaten und
+validiert daraus ein `CleanDocumentIR`. `renderers/clean_note.py` ist eine reine Funktion von
+diesem Modell zu einem selbstständigen, inerten SVG. Das Frontend hält SVG, Transkript und JSON
+bis zur ausdrücklichen Speicheraktion im Arbeitsspeicher. Die bestehende Analysepipeline bleibt
+für den kompatiblen CLI-Vertrag erhalten.
 
 `schemas.py` kennt nur Typen, Pydantic und reine Validierungslogik. Keine Imports aus Provider, CLI, Writer oder Renderer. `renderers/` darf die Domain importieren. `providers/base.py` definiert die schmale Schnittstelle mit Domain-Eingaben und -Ausgaben. Der konkrete Adapter kapselt SDK, Transport und Anbieterfehler. `pipeline.py` verwendet den Provider-Vertrag, nicht dessen Implementierung. `application.py` verbindet Provider, Pipeline, Renderer und Writer für beide Bedienoberflächen. `cli.py` und `frontend.py` bleiben dünne Eingabeadapter und rufen einander nicht per Subprozess auf.
 
@@ -229,7 +237,7 @@ Diagrammstatus `generated` heißt: Mermaid-Quelltext wird als Teil des vollstän
 
 Der Writer erhält ein Mapping fester Dateinamen zu Texten. Er erzeugt ein exklusives temporäres Verzeichnis im Ausgabeverzeichnis und veröffentlicht es erst nach vollständigem Schreiben unter `run-<uuid4-hex>`. Ein bestehendes Ziel ist ein Fehler; nie ersetzen. Bei gewöhnlichen Fehlern eigene temporäre Dateien aufräumen. Nach Stromausfall oder Prozessabbruch können temporäre Reste bleiben; kein Anspruch auf transaktionale Dauerhaftigkeit über Hardwareausfälle hinweg.
 
-Das Frontend hält `DocumentIR` und gerenderte Textartefakte sitzungsgebunden im Gradio-State. Für die grafische Vorschau erzeugt ein zusätzlicher reiner Renderer aus dem validierten Graphen statisches SVG mit festem Layout, HTML-Escaping und ohne Skripte, Links oder externe Ressourcen. Diese SVG-Vorschau wird nicht an den Writer übergeben; der gespeicherte Diagrammvertrag bleibt `diagram.mmd`. Die reguläre Schaltfläche verwendet stets `Mode.FULL` ohne Typvorgabe und zeigt alle daraus erzeugten Ansichten. Alternative Diagrammschaltflächen ersetzen den State erst nach erfolgreicher graphbezogener Neuinterpretation; Reinschrift und Abschnitte bleiben erhalten. Eine Speicheraktion übergibt exakt die aktuell angezeigten regulären Artefakte an den Writer und löst keine erneute Analyse aus. Bildwechsel und Verwerfen invalidieren den State. Das Frontend startet mit deaktivierter Gradio-Analyse, ohne Sharing, Monitoring oder MCP-Endpunkt und bindet ausschließlich an `127.0.0.1`.
+Das Frontend hält `CleanDocumentIR` und die gerenderten Artefakte sitzungsgebunden im Gradio-State. Ein reiner Renderer erzeugt aus dem validierten Layout statisches SVG mit HTML-Escaping und ohne Skripte, Links oder externe Ressourcen. Eine Speicheraktion übergibt exakt `optimized-note.svg`, `transcript.md` und `result.json` an den Writer und löst keine erneute Analyse aus. Bildwechsel und Verwerfen invalidieren den State. Das Frontend startet mit deaktivierter Gradio-Analyse, ohne Sharing, Monitoring oder MCP-Endpunkt und bindet ausschließlich an `127.0.0.1`.
 
 ## 8. Fehlerbehandlung und Beobachtbarkeit
 

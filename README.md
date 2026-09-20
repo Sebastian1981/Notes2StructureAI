@@ -1,12 +1,14 @@
 # Notes2StructureAI
 
-Notes2StructureAI ist eine lokale Python-Anwendung, die ein Bild mit handschriftlichen
-Notizen oder Skizzen in überprüfbare digitale Artefakte überführt. Die Anwendung bewahrt
-die Quellsprache, trennt Transkription von Interpretation und kennzeichnet Unsicherheiten.
+Notes2StructureAI ist eine lokale Python-Anwendung, die eine handschriftliche Seite visuell
+aufräumt. Erkennbarer Inhalt, Gruppierung und relative Anordnung sowie sichtbare Kästen, Linien
+und Pfeile bleiben erhalten, werden aber als saubere digitale SVG-Seite neu gezeichnet.
+Unsicherheiten bleiben sichtbar, statt durch erfundene Inhalte verdeckt zu werden.
 
 Der aktuelle Stand enthält sichere lokale Bildprüfung und Normalisierung, die streng validierte
-Pipeline, JSON-, Markdown- und Mermaid-Ausgabe, einen OpenAI-Vision-Adapter sowie ein schlankes
-lokales Browser-Frontend. Die normale Testsuite verwendet weiterhin ausschließlich einen
+Pipeline, validierte Layoutdaten, sichere SVG-Ausgabe, einen OpenAI-Vision-Adapter sowie ein
+schlankes lokales Browser-Frontend. Die bestehende CLI unterstützt weiterhin die bisherigen
+Analyseartefakte. Die normale Testsuite verwendet ausschließlich einen
 Fake-Provider und benötigt weder Netzwerk noch API-Schlüssel.
 
 ## Lokale Entwicklungsumgebung
@@ -49,18 +51,16 @@ uv run notes2structure-ui
 
 Die Anwendung öffnet `http://127.0.0.1:7860` im Browser. Dort kannst du ein PNG/JPEG per
 Dateiauswahl oder Drag-and-drop ablegen oder einen OneNote-Screenshot direkt aus der
-Zwischenablage einfügen. **Vollständig analysieren** erzeugt mit einem OpenAI-Aufruf gemeinsam
-Reinschrift, strukturierte Notizen und – wenn erkennbar – das automatisch passende Diagramm.
+Zwischenablage einfügen. **Notiz optimieren** überträgt das normalisierte Bild einmal und erzeugt
+eine aufgeräumte Vorschau. Eine Auswahl zwischen Notiz, Mindmap oder Prozess ist nicht nötig.
 
 Vor jeder externen Analyse muss die Checkbox zur Bildübertragung aktiviert werden. Die
 Oberfläche selbst ist nur lokal erreichbar; Gradio-Telemetrie und öffentliche Freigabelinks sind
-deaktiviert. Reinschrift, Notizen, eine lokal erzeugte Diagrammgrafik, Mermaid-Quelltext und JSON
-erscheinen zunächst nur als Vorschau. Im Diagramm-Tab kannst du das vorhandene validierte JSON
-optional als Mindmap, Prozess oder Architektur neu interpretieren lassen. Das ist jeweils ein
-sichtbar gekennzeichneter zusätzlicher OpenAI-Aufruf, überträgt aber nicht erneut das Bild.
-Erst **Ergebnis speichern** erzeugt einen neuen `run-...`-Ordner. **Verwerfen** oder ein Bildwechsel
-entfernen die Vorschau ohne Veröffentlichung. Bereits erfolgte Provideraufrufe können unabhängig
-vom Speichern Kosten verursacht haben.
+deaktiviert. Die optimierte SVG-Seite, der erkannte Inhalt und die validierten Layoutdaten erscheinen
+zunächst nur als Vorschau. Erst **Ergebnis speichern** erzeugt einen neuen `run-...`-Ordner mit
+`optimized-note.svg`, `transcript.md` und `result.json`. **Verwerfen** oder ein Bildwechsel entfernt
+die Vorschau ohne Veröffentlichung. Bereits erfolgte Provideraufrufe können unabhängig vom
+Speichern Kosten verursacht haben.
 
 ## Qualitätsprüfungen
 

@@ -8,7 +8,9 @@ from uuid import uuid4
 
 from notes2structure.errors import OutputError
 
-ALLOWED_ARTIFACTS = frozenset({"result.json", "transcript.md", "notes.md", "diagram.mmd"})
+ALLOWED_ARTIFACTS = frozenset(
+    {"result.json", "transcript.md", "notes.md", "diagram.mmd", "optimized-note.svg"}
+)
 
 
 def publish_artifacts(

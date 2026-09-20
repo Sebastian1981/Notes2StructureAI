@@ -1,10 +1,10 @@
-# Notes2StructureAI — Spezifikation v0.1
+# Notes2StructureAI — Spezifikation v0.2
 
 Status: implementierbarer MVP-Vertrag. Diese Datei beschreibt Anforderungen, keinen bereits erreichten Implementierungsstand. Projektregeln stehen in [AGENTS.md](../AGENTS.md), technische Verträge in [architecture.md](architecture.md).
 
 ## 1. Ziel
 
-Ein Nutzer startet lokal einen CLI-Aufruf oder öffnet das lokale Browser-Frontend für eine handschriftliche Notiz oder Skizze. Das Programm erzeugt überprüfbare digitale Artefakte und erhält die Unterscheidung zwischen erkanntem Inhalt und Interpretation. Das Originalbild bleibt unverändert.
+Ein Nutzer öffnet das lokale Browser-Frontend für eine handschriftliche Notiz oder Skizze. Das Programm rekonstruiert den erkennbaren Inhalt und die sichtbare räumliche Anordnung als aufgeräumte digitale Seite. Das Originalbild bleibt unverändert. Der Nutzer muss das Dokument nicht als Notiz, Mindmap, Prozess oder Architektur klassifizieren. Die bestehende CLI bleibt für die bisherige strukturierte Analyse kompatibel.
 
 Der MVP unterstützt deutsche und englische Handschrift sowie gemischte Beschriftungen. Er bewahrt die Quellsprache und macht Unsicherheiten sichtbar. Er garantiert weder fehlerfreie Erkennung noch fachliche Richtigkeit einer Interpretation.
 
@@ -38,15 +38,13 @@ Für einen konfigurierten externen Provider wird ausdrücklich `--allow-remote` 
 
 Der erfolgreiche Aufruf schreibt genau den Pfad des fertigen Ergebnisverzeichnisses nach stdout. Diagnose und Warnungen gehen nach stderr. `--help` beschreibt die Modi, die mögliche Bildübertragung und Konfigurationsvariablen.
 
-### 3.2 Lokales Frontend
+### 3.2 Lokales Frontend (primärer Workflow)
 
 Der Paket-Entry-Point `notes2structure-ui` startet eine lokale Browser-Oberfläche auf `127.0.0.1`. Sie akzeptiert genau ein PNG- oder JPEG-Bild per Dateiauswahl, Drag-and-drop oder Zwischenablage und zeigt das Eingabebild vor der Analyse an. Öffentliches Sharing, Monitoring-Endpunkte und Framework-Telemetrie sind deaktiviert.
 
-Das Frontend startet immer eine vollständige Analyse mit automatischer Dokumenttyperkennung. Dieser eine reguläre Provideraufruf liefert gemeinsam Reinschrift, strukturierte Notizen, Klassifikation und gegebenenfalls den passenden Graphen. Vor dem externen Provideraufruf muss der Nutzer die Übertragung des Bildes ausdrücklich freigeben.
+Das Frontend startet mit `Notiz optimieren` genau einen vollständigen Cleanup-Aufruf. Dieser liefert eine wortnahe Transkription sowie normalisierte Text- und Formelemente mit ihrer relativen Position. Es findet keine Dokumenttypklassifikation und keine erzwungene Umdeutung statt. Vor dem externen Provideraufruf muss der Nutzer die Übertragung des Bildes ausdrücklich freigeben.
 
-Nach der vollständigen Analyse kann der Nutzer das validierte Ergebnis optional als Mindmap, Prozess- oder Architekturdiagramm neu interpretieren lassen. Jede solche Aktion ist ein ausdrücklich ausgelöster zusätzlicher Provideraufruf, der ausschließlich das für die Umdeutung erforderliche validierte Analyse-JSON und nicht erneut das Bild überträgt. Die Oberfläche weist vor den Schaltflächen auf den zusätzlichen Aufruf hin. Ohne erneute bestehende Übertragungsfreigabe findet er nicht statt. Reinschrift und strukturierte Notizen bleiben unverändert; fehlt im vorhandenen JSON ausreichende Evidenz, wird kein Diagramm erfunden.
-
-Nach erfolgreicher Analyse zeigt das Frontend Reinschrift, strukturierte Notizen, eine lokal aus dem validierten Graphen erzeugte SVG-Diagrammvorschau beziehungsweise den Grund für ein fehlendes Diagramm, den Mermaid-Quelltext sowie das validierte JSON. Die SVG-Grafik dient nur der Vorschau und wird nicht als zusätzliches Ergebnisartefakt gespeichert. Zu diesem Zeitpunkt entsteht kein Ergebnisordner. `Ergebnis speichern` veröffentlicht dieselben bereits gerenderten Textartefakte ohne weiteren Provideraufruf; `Verwerfen` oder eine neue Bildauswahl entfernt die Vorschau ohne Veröffentlichung.
+Nach erfolgreicher Optimierung zeigt das Frontend eine lokal und deterministisch aus den validierten Layoutdaten erzeugte SVG-Seite, den erkannten Inhalt und das validierte JSON. Inhalt, Quellsprache, Gruppierung und räumliche Beziehungen bleiben erhalten; Schrift, Linien, Abstände und Formen werden vereinheitlicht. Zu diesem Zeitpunkt entsteht kein Ergebnisordner. `Ergebnis speichern` veröffentlicht `optimized-note.svg`, `transcript.md` und `result.json` ohne weiteren Provideraufruf; `Verwerfen` oder eine neue Bildauswahl entfernt die Vorschau ohne Veröffentlichung.
 
 ## 4. Eingaben
 
@@ -59,6 +57,16 @@ Nach erfolgreicher Analyse zeigt das Frontend Reinschrift, strukturierte Notizen
 **IN-04:** Hash des ursprünglichen Dateiinhalts, ursprünglichen Basisdateinamen und normalisierte Bildabmessungen lokal in der IR speichern. Keine absoluten Eingabepfade oder Originalbilder in die Ergebnisse kopieren. Die einzige Dateiübertragung betrifft das normalisierte Bild und den für die Analyse benötigten Prompt.
 
 ## 5. Funktionale Anforderungen
+
+### 5.0 Visuelle Optimierung im Frontend
+
+**FR-00a:** Die Optimierung bewahrt erkennbaren Inhalt und Quellsprache. Sie darf keine Zusammenfassung, Übersetzung, fachliche Ergänzung oder erzwungene Diagrammklassifikation vornehmen.
+
+**FR-00b:** Der Provider beschreibt Textblöcke, Kästen, Ellipsen, Linien und Pfeile in einem normalisierten Koordinatensystem. Jedes Textelement verweist auf Transkriptsegmente; jede Form besitzt Textreferenzen oder sichtbare Evidenz. Ungültige Referenzen, Koordinaten und zusätzliche Felder werden abgelehnt.
+
+**FR-00c:** Die Anwendung erzeugt das SVG ausschließlich lokal aus validierten Layoutdaten. Modelltext darf kein SVG, HTML, Skript, Link oder Dateipfad einschleusen. Unsichere Elemente werden sichtbar hervorgehoben.
+
+**FR-00d:** Die visuelle Optimierung benötigt im Normalfall genau einen Provideraufruf. Vorschau und Speichern lösen keine weiteren Aufrufe aus.
 
 ### 5.1 Transkription
 
@@ -130,11 +138,11 @@ Keine halbfertigen Fachartefakte bei technischem Fehlschlag. Unsicherheit ist ei
 
 **NFR-01 — Wartbarkeit:** Typed Python, modulare Verantwortlichkeiten, eine synchrone Pipeline, explizite Konfiguration. Technische Details und Qualitätskommandos stehen in den beiden Begleitdokumenten.
 
-**NFR-02 — Reproduzierbarkeit:** Gleiche validierte IR erzeugt byteidentische Markdown-/Mermaid-Dateien. Neue Modellaufrufe dürfen abweichen. Modellkennung, Provider, Prompt-Version und Schema-Version zur Nachvollziehbarkeit speichern.
+**NFR-02 — Reproduzierbarkeit:** Gleiche validierte IR erzeugt byteidentische Markdown-, Mermaid- und SVG-Dateien. Neue Modellaufrufe dürfen abweichen. Modellkennung, Provider, Prompt-Version und Schema-Version zur Nachvollziehbarkeit speichern.
 
 **NFR-03 — Datenschutz:** Keine Telemetrie, keine externen Requests ohne Freigabe, keine sensiblen Inhalte in Logs, keine eingebetteten Metadaten übertragen. Das Frontend ist nur über Loopback erreichbar und aktiviert keine öffentlichen Freigabelinks. Eigene Dateien in synchronisierten Verzeichnissen unterliegen weiterhin der vom Nutzer eingerichteten Synchronisierung. Die Anwendung steuert keine Speicher- oder Trainingsrichtlinien des gewählten Anbieters; diese sind bei dessen Einrichtung zu dokumentieren.
 
-**NFR-04 — Begrenzte Ressourcen:** Ein Provideraufruf pro vollständiger Analyse als Normalfall. Nur eine ausdrücklich gewählte alternative Diagramminterpretation darf einen weiteren textbasierten Provideraufruf auslösen; sie sendet das Bild nicht erneut. Höchstens drei Gesamtversuche je bewusst ausgelöstem Aufruf bei transienten Fehlern, maximal 60 Sekunden je Versuch und 200 Sekunden Gesamtdauer einschließlich Wartezeit. Providerantworten vor Parsing auf 2 MiB begrenzen. Keine parallele Verarbeitung, automatischen Reparaturaufrufe oder versteckten Modell-Fallbacks.
+**NFR-04 — Begrenzte Ressourcen:** Ein Provideraufruf pro Frontend-Optimierung beziehungsweise CLI-Analyse als Normalfall. Vorschau und Speichern lösen keinen zusätzlichen Aufruf aus. Höchstens drei Gesamtversuche je bewusst ausgelöstem Aufruf bei transienten Fehlern, maximal 60 Sekunden je Versuch und 200 Sekunden Gesamtdauer einschließlich Wartezeit. Providerantworten vor Parsing auf 2 MiB begrenzen. Keine parallele Verarbeitung, automatischen Reparaturaufrufe oder versteckten Modell-Fallbacks.
 
 **NFR-05 — Portabilität:** Windows und Linux mit Python 3.12 durch CI absichern; Pfade mit Leerzeichen und Unicode unterstützen. Mermaid-Bildexport benötigt keine Runtime-Abhängigkeit, da v0.1 nur `.mmd` ausgibt.
 
@@ -159,8 +167,8 @@ Die Abnahme kombiniert automatisierte Softwaretests mit einem kleinen Live-Smoke
 | AC-11 | Leeres, unleserliches oder strukturarmes Bild liefert ein überprüfbares Ergebnis mit Warnung; keine erfundenen Knoten/Kanten und kein vorgetäuschtes Diagramm. |
 | AC-12 | Lint-, Format-, Typ-, Test- und Paketprüfungen sind in CI erfolgreich; die normale Testsuite benötigt weder Netz noch API-Schlüssel. |
 | AC-13 | Vor v0.1-Abnahme mindestens ein freigegebenes Bild pro Kern-Dokumenttyp sowie ein schwieriges Beispiel mit echtem Provider prüfen. Transkription, Zahlen, Klassifikation, Beziehungen und Unsicherheiten mit dem Original vergleichen; beobachtete Fehler und Modell-/Prompt-Version dokumentieren. |
-| AC-14 | Das lokale Frontend lässt Bild-Upload und Zwischenablage, die gemeinsame Vollanalyse, optionale Neuinterpretationen und die ausdrückliche Remote-Freigabe erkennen. Erzeugte Diagramme erscheinen als sichere lokale SVG-Grafik; der Mermaid-Quelltext bleibt separat verfügbar. Ein Start bindet nur an `127.0.0.1` und erzeugt keinen öffentlichen Freigabelink. |
-| AC-15 | Eine vollständige Analyse erzeugt mit einem Provideraufruf alle regulären Vorschauinhalte ohne Ergebnisordner. Eine optionale Neuinterpretation löst sichtbar genau einen weiteren Aufruf ohne Bild aus. Erst `Ergebnis speichern` veröffentlicht die aktuell angezeigten Artefakte und verursacht keinen Provideraufruf; Verwerfen und Bildänderungen invalidieren die Vorschau. |
+| AC-14 | Das lokale Frontend lässt Bild-Upload und Zwischenablage, die visuelle Optimierung und die ausdrückliche Remote-Freigabe erkennen. Die rekonstruierte Seite erscheint als sichere lokale SVG-Grafik. Ein Start bindet nur an `127.0.0.1` und erzeugt keinen öffentlichen Freigabelink. |
+| AC-15 | Eine Optimierung erzeugt mit genau einem Provideraufruf SVG, Transkript und validiertes JSON als Vorschau ohne Ergebnisordner. Erst `Ergebnis speichern` veröffentlicht diese Artefakte und verursacht keinen Provideraufruf; Verwerfen und Bildänderungen invalidieren die Vorschau. |
 
 ## 10. Out of Scope und spätere Optionen
 

@@ -9,15 +9,22 @@ from notes2structure.image_reader import NormalizedImage
 from notes2structure.providers.base import AnalysisOptions
 from notes2structure.schemas import (
     AnalysisPayload,
+    CleanLayout,
+    CleanupPayload,
     DocumentType,
     Edge,
     Graph,
+    LayoutShape,
+    LayoutText,
     Node,
     NodeKind,
     NoteItem,
     NoteSection,
     ReinterpretationPayload,
     SegmentStatus,
+    ShapeKind,
+    TextAlignment,
+    TextRole,
     TranscriptSegment,
     Uncertainty,
     UncertaintyKind,
@@ -28,13 +35,16 @@ from notes2structure.schemas import (
 class FakeProvider:
     payload: AnalysisPayload
     reinterpretation_payload: ReinterpretationPayload | None = None
+    cleanup_payload: CleanupPayload | None = None
     name: str = "fake"
     model: str = "deterministic-test-model"
     prompt_version: str = "analyze-v1"
     reinterpret_prompt_version: str = "reinterpret-v1"
+    cleanup_prompt_version: str = "cleanup-v1"
     is_remote: bool = False
     calls: int = field(default=0, init=False)
     reinterpret_calls: int = field(default=0, init=False)
+    optimize_calls: int = field(default=0, init=False)
 
     def analyze(self, image: NormalizedImage, options: AnalysisOptions) -> AnalysisPayload:
         del image, options
@@ -48,6 +58,14 @@ class FakeProvider:
             message = "No reinterpretation payload configured for this test."
             raise AssertionError(message)
         return self.reinterpretation_payload
+
+    def optimize(self, image: NormalizedImage) -> CleanupPayload:
+        del image
+        self.optimize_calls += 1
+        if self.cleanup_payload is None:
+            message = "No cleanup payload configured for this test."
+            raise AssertionError(message)
+        return self.cleanup_payload
 
 
 def write_png(path: Path, *, size: tuple[int, int] = (4, 3)) -> Path:
@@ -184,3 +202,68 @@ def uncertain_process_payload() -> AnalysisPayload:
         ),
     ]
     return AnalysisPayload.model_validate(payload.model_dump())
+
+
+def cleanup_payload() -> CleanupPayload:
+    return CleanupPayload(
+        transcript=[
+            TranscriptSegment(id="t1", text="Projekt planen", status=SegmentStatus.CLEAR),
+            TranscriptSegment(id="t2", text="Prototyp testen", status=SegmentStatus.CLEAR),
+        ],
+        layout=CleanLayout(
+            canvas_width=1000,
+            canvas_height=700,
+            texts=[
+                LayoutText(
+                    id="l1",
+                    text="Projekt planen",
+                    role=TextRole.HEADING,
+                    alignment=TextAlignment.CENTER,
+                    x=260,
+                    y=120,
+                    width=480,
+                    height=100,
+                    source_ids=["t1"],
+                    uncertain=False,
+                ),
+                LayoutText(
+                    id="l2",
+                    text="Prototyp testen",
+                    role=TextRole.BODY,
+                    alignment=TextAlignment.CENTER,
+                    x=300,
+                    y=500,
+                    width=400,
+                    height=80,
+                    source_ids=["t2"],
+                    uncertain=False,
+                ),
+            ],
+            shapes=[
+                LayoutShape(
+                    id="s1",
+                    kind=ShapeKind.ROUNDED_RECTANGLE,
+                    x1=220,
+                    y1=80,
+                    x2=780,
+                    y2=260,
+                    source_ids=["t1"],
+                    visual_evidence="Sichtbarer Kasten um die Überschrift.",
+                    uncertain=False,
+                ),
+                LayoutShape(
+                    id="s2",
+                    kind=ShapeKind.ARROW,
+                    x1=500,
+                    y1=270,
+                    x2=500,
+                    y2=480,
+                    source_ids=[],
+                    visual_evidence="Sichtbarer Pfeil nach unten.",
+                    uncertain=False,
+                ),
+            ],
+        ),
+        uncertainties=[],
+        warnings=[],
+    )

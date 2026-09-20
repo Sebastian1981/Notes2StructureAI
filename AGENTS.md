@@ -4,7 +4,7 @@ Diese Regeln gelten für das gesamte Repository und für menschliche wie KI-gest
 
 ## 1. Ziel und verbindlicher Kontext
 
-Notes2StructureAI ist eine lokal ausgeführte Python-Anwendung mit CLI und schlankem Browser-Frontend, die handschriftliche Notizen und Skizzen aus PNG/JPG in wortnahe Transkription, strukturierte Notizen, einen Dokumenttyp, ein validiertes JSON-Zwischenformat und gegebenenfalls Mermaid-Diagramme überführt.
+Notes2StructureAI ist eine lokal ausgeführte Python-Anwendung mit CLI und schlankem Browser-Frontend. Der primäre Frontend-Workflow räumt handschriftliche Notizen und Skizzen aus PNG/JPG visuell auf und rekonstruiert Inhalt, relative Anordnung und sichtbare Formen als sichere SVG-Seite. Die bestehende CLI erzeugt weiterhin wortnahe Transkription, strukturierte Notizen, ein validiertes JSON-Zwischenformat und gegebenenfalls Mermaid-Diagramme.
 
 Vor Änderungen lesen:
 
@@ -18,7 +18,7 @@ Die Spezifikation ist maßgeblich für das Produktverhalten, die Architektur fü
 - v0.1: eine Bilddatei je CLI-Aufruf, synchrone Verarbeitung, lokale Dateien als Persistenz.
 - Keine öffentlich erreichbare Webanwendung, Datenbank, Cloud-Bereitstellung, Power-Automate-Anbindung, Hintergrunddienste, Folder Watcher oder Multi-Agent-Architektur. Das Showcase-Frontend bindet ausschließlich an die lokale Loopback-Schnittstelle.
 - Ein schlanker Provider-Vertrag, ein echter Vision-Adapter und ein Test-Fake reichen. Keine Plugin-Registry, generischen Repository-Schichten, Dependency-Injection-Frameworks oder vorsorglichen Event-Busse.
-- CLI und Frontend verwenden denselben Anwendungsdienst. Das Frontend hält eine Vorschau nur im Arbeitsspeicher und veröffentlicht Artefakte erst nach einer ausdrücklichen Speicheraktion; öffentliches Sharing und Framework-Telemetrie bleiben deaktiviert.
+- CLI und Frontend verwenden denselben Anwendungsdienst mit getrennten, schmalen Analyse- und Cleanup-Pipelines. Das Frontend hält eine Vorschau nur im Arbeitsspeicher und veröffentlicht Artefakte erst nach einer ausdrücklichen Speicheraktion; öffentliches Sharing und Framework-Telemetrie bleiben deaktiviert.
 - Funktionen und Module nach fachlicher Verantwortung schneiden. Kleine, nachvollziehbare Funktionen bevorzugen, aber keine willkürlichen Zeilenlimits erzwingen.
 - Abhängigkeiten nur für einen konkreten Bedarf hinzufügen und im Review begründen. Standardbibliothek verwenden, wenn sie die Aufgabe klar löst.
 - Lokale Ausführung ist keine Zusage vollständig lokaler Inferenz. Netzbasierte Vision-Verarbeitung muss konfiguriert und explizit freigegeben sein; niemals automatisch zu einem externen Dienst wechseln.
@@ -46,9 +46,9 @@ Die Spezifikation ist maßgeblich für das Produktverhalten, die Architektur fü
 ## 5. Architekturgrenzen
 
 - Domain: Pydantic-Modelle und fachliche Validierung, ohne Provider-SDK, CLI oder Dateisystemzugriffe.
-- Provider: Bildanalyse und Übersetzung der Anbieterantwort in den vereinbarten Analysevertrag. Keine Ausgabe von fertigem Markdown oder Mermaid als vertrauenswürdiges Ergebnis übernehmen.
+- Provider: Bildanalyse und Übersetzung der Anbieterantwort in den vereinbarten Analyse- oder Cleanup-Vertrag. Keine Ausgabe von fertigem Markdown, Mermaid, SVG oder HTML als vertrauenswürdiges Ergebnis übernehmen.
 - Pipeline: Schritte koordinieren und Fehler zuordnen; keine SDK-spezifischen Details.
-- Renderer: reine Funktionen von validiertem Modell zu Text. Keine Modellaufrufe, Netzwerkzugriffe oder Dateischreiboperationen.
+- Renderer: reine Funktionen von validiertem Modell zu Text oder sicherem SVG. Keine Modellaufrufe, Netzwerkzugriffe oder Dateischreiboperationen.
 - Infrastruktur: Bildlesen, Konfiguration und sicheres Schreiben der Artefakte.
 - Kein Mermaid-Code, HTML oder Dateipfad aus Modelltext direkt ausführen oder als Steuerinformation übernehmen.
 

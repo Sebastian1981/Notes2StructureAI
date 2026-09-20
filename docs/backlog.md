@@ -125,6 +125,19 @@ Ziel: Die vorhandene Pipeline kann ohne Terminal über eine bewusst kleine, auss
 
 Zugeordnete Abnahme: AC-14 und AC-15.
 
+## Epic 8 — Visuelle Notizoptimierung
+
+Ziel: Das Frontend räumt eine handschriftliche Seite auf, ohne den Nutzer zu einer Auswahl zwischen
+Notiz, Mindmap, Prozess oder Architektur zu zwingen.
+
+| ID | User Story | Abnahmekriterien | Status |
+| --- | --- | --- | --- |
+| US-036 | Als Nutzer möchte ich meine Seite mit einer einzigen Aktion visuell aufräumen, damit Inhalt und Anordnung erhalten bleiben, aber das Ergebnis präsentabel wird. | Ein Cleanup-Aufruf liefert Transkript, positionierte Textblöcke und sichtbare Formen; keine Typauswahl ist nötig. | `Erledigt` |
+| US-037 | Als Nutzer möchte ich eine saubere Bildvorschau erhalten, damit ich Kästen, Linien, Pfeile und Text vor dem Speichern prüfen kann. | Ein lokaler Renderer erzeugt aus validierten Layoutdaten ein sicheres SVG und markiert Unsicherheiten sichtbar. | `Erledigt` |
+| US-038 | Als Nutzer möchte ich nur die optimierte Seite und ihre Prüfdaten speichern, damit der Ergebnisordner übersichtlich bleibt. | Speichern veröffentlicht `optimized-note.svg`, `transcript.md` und `result.json` ohne weiteren Provideraufruf. | `Erledigt` |
+
+Zugeordnete Abnahme: AC-14 und AC-15.
+
 ## Empfohlene Reihenfolge
 
 Die Stories werden grundsätzlich nach ihrer Nummer umgesetzt. Das lokale Showcase-Frontend aus

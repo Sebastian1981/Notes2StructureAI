@@ -19,9 +19,16 @@ from notes2structure.image_reader import NormalizedImage
 from notes2structure.pipeline import analyze_image
 from notes2structure.providers.base import AnalysisOptions
 from notes2structure.providers.openai import MAX_RESPONSE_BYTES, OpenAIVisionProvider, RetryHooks
-from notes2structure.schemas import AnalysisPayload, KnownType, Mode, ReinterpretationPayload
+from notes2structure.schemas import (
+    AnalysisPayload,
+    CleanupPayload,
+    KnownType,
+    Mode,
+    ReinterpretationPayload,
+)
 from tests.support import (
     FakeProvider,
+    cleanup_payload,
     notes_payload,
     process_reinterpretation_payload,
     transcribe_payload,
@@ -139,6 +146,26 @@ def test_transcribe_mode_is_explicit_in_request() -> None:
     assert isinstance(request_input, list)
     content = request_input[0]["content"]  # type: ignore[index]
     assert "Mode: transcribe" in content[0]["text"]  # type: ignore[index, operator]
+
+
+def test_cleanup_uses_dedicated_schema_prompt_and_original_image() -> None:
+    payload = cleanup_payload()
+    provider, requests = make_provider([FakeRawResponse(payload)])
+
+    result = provider.optimize(normalized_image())
+
+    assert result == payload
+    request = requests.calls[0]
+    assert request["text_format"] is CleanupPayload
+    assert provider.cleanup_prompt_version == "cleanup-v1"
+    instructions = request["instructions"]
+    assert isinstance(instructions, str)
+    assert "Do not classify the page" in instructions
+    assert "Do not summarize, translate" in instructions
+    request_input = request["input"]
+    assert isinstance(request_input, list)
+    content = request_input[0]["content"]  # type: ignore[index]
+    assert content[1]["detail"] == "original"  # type: ignore[index]
 
 
 def test_reinterpretation_uses_only_validated_json_without_an_image(tmp_path: Path) -> None:

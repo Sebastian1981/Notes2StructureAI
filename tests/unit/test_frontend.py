@@ -4,29 +4,25 @@ from pathlib import Path
 
 import gradio as gr
 
-from notes2structure.application import create_preview
+from notes2structure.application import create_cleanup_preview
 from notes2structure.frontend import build_frontend, preview_to_view
-from notes2structure.providers.base import AnalysisOptions
-from notes2structure.schemas import Mode
-from tests.support import FakeProvider, process_payload, write_png
+from tests.support import FakeProvider, cleanup_payload, notes_payload, write_png
 
 
-def test_frontend_view_contains_inline_mermaid_without_saving(tmp_path: Path) -> None:
-    image = write_png(tmp_path / "process.png")
-    preview = create_preview(
+def test_frontend_view_contains_cleaned_note_without_saving(tmp_path: Path) -> None:
+    image = write_png(tmp_path / "note.png")
+    preview = create_cleanup_preview(
         image,
-        AnalysisOptions(Mode.FULL, None),
-        FakeProvider(process_payload()),
+        FakeProvider(notes_payload(), cleanup_payload=cleanup_payload()),
         allow_remote=False,
     )
 
     view = preview_to_view(preview)
 
     assert "noch nicht gespeichert" in view.status
-    assert view.diagram.startswith("<svg")
-    assert "Start" in view.diagram
-    assert "flowchart TD" in view.diagram_source
-    assert '"schema_version": "1.0"' in view.result_json
+    assert view.optimized_note.startswith("<svg")
+    assert "Projekt planen" in view.optimized_note
+    assert '"schema_version": "clean-note-1.0"' in view.result_json
 
 
 def test_frontend_can_be_built_without_starting_a_server() -> None:
